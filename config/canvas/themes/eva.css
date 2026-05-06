@@ -1,0 +1,275 @@
+/* Neon Genesis Evangelion — "EVA-01"
+   Dark purple body + neon green accents. The iconic Unit-01 palette. */
+
+[data-theme="eva"] {
+  --bg-primary: #06040a;
+  --bg-secondary: #0e0818;
+  --bg-panel: #100a1a;
+  --bg-panel-alpha: rgba(16,10,26,0.80);
+  --panel-blur: 8px;
+  --bg-input: #0a0610;
+  --border: rgba(138,43,226,0.25);
+  --border-active: rgba(138,43,226,0.45);
+  --text-primary: #4ade80;
+  --text-secondary: #86efac;
+  --text-dim: #6b9a7a;
+  --text-bright: #bbf7d0;
+  --color-ok: #4ade80;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-orchestrator: #a855f7;
+  --color-builder: #c084fc;
+  --color-architect: #7c3aed;
+  --color-social: #4ade80;
+  --scanline-opacity: 0;
+  --scanline-color: transparent;
+  --vignette-intensity: 0.35;
+}
+
+[data-theme="eva"] .terminal-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='43.3'%3E%3Cpolygon points='25,0 50,14.4 50,43.3 25,28.9 0,43.3 0,14.4' fill='none' stroke='rgba(138,43,226,0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 50px 43.3px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="eva"] .header-title {
+  letter-spacing: 6px;
+  font-weight: 700;
+  animation: eva-nerv-pulse 4s ease-in-out infinite;
+}
+
+@keyframes eva-nerv-pulse {
+  0%, 100% { text-shadow: 0 0 8px rgba(138,43,226,0.2); }
+  50% { text-shadow: 0 0 16px rgba(138,43,226,0.4); }
+}
+
+@keyframes eva-alert-flash {
+  0%, 90%, 100% { box-shadow: none; }
+  95% { box-shadow: inset 0 0 15px rgba(138,43,226,0.15); }
+}
+[data-theme="eva"] .panel {
+  border: 2px solid var(--border);
+  --bg-header-alpha: rgba(16,10,26,0.65);
+  animation: eva-alert-flash 8s ease-in-out infinite;
+}
+/* Hexagonal grid overlay that pulses from center */
+[data-theme="eva"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49'%3E%3Cpath d='M14 0L28 8.1v16.2L14 32.4 0 24.3V8.1z' fill='none' stroke='rgba(138,43,226,0.12)' stroke-width='0.5'/%3E%3Cpath d='M14 16.6L28 24.7v16.2L14 49 0 40.9V24.7z' fill='none' stroke='rgba(74,222,128,0.06)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 28px 49px;
+  mask-image: radial-gradient(ellipse at center, transparent 20%, black 60%);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 20%, black 60%);
+  animation: eva-hex-pulse 4s ease-in-out infinite;
+}
+@keyframes eva-hex-pulse {
+  0%, 100% {
+    mask-image: radial-gradient(ellipse at center, transparent 10%, black 50%);
+    -webkit-mask-image: radial-gradient(ellipse at center, transparent 10%, black 50%);
+    opacity: 0.6;
+  }
+  50% {
+    mask-image: radial-gradient(ellipse at center, transparent 40%, black 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, transparent 40%, black 80%);
+    opacity: 1;
+  }
+}
+[data-theme="eva"] .panel:nth-child(2)::after { animation-delay: -1s; }
+[data-theme="eva"] .panel:nth-child(3)::after { animation-delay: -2s; }
+[data-theme="eva"] .panel:nth-child(4)::after { animation-delay: -0.5s; }
+/* Purple top edge + green bottom edge (EVA-01 body colors) */
+[data-theme="eva"] .panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 3px 20px -5px rgba(138,43,226,0.2),
+    inset 0 -3px 20px -5px rgba(74,222,128,0.12);
+}
+
+[data-theme="eva"] .panel-title {
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+[data-theme="eva"] .header-status::after {
+  content: "GOD'S IN HIS HEAVEN";
+  font-size: 7px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-left: 12px;
+  opacity: 0.6;
+}
+
+/* ── Phase 2: Page Transitions ─────────────────────────────────────────── */
+@keyframes eva-leave {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes eva-flash {
+  0%   { opacity: 0; }
+  1%   { opacity: 1; background: var(--text-primary); }
+  100% { opacity: 0; }
+}
+@keyframes eva-enter {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+[data-theme="eva"] .page-leaving {
+  animation: eva-leave 0.1s ease-in forwards !important;
+}
+[data-theme="eva"] .page-entering {
+  animation: eva-enter 0.15s ease-out 0.05s forwards !important;
+}
+[data-theme="eva"] .page-leaving::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: var(--text-primary);
+  opacity: 0;
+  animation: eva-flash 0.15s ease-out forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Phase 2: PATTERN BLUE — powered down team card */
+[data-theme="eva"] .agent-offline {
+  filter: grayscale(1) brightness(0.25) sepia(0.3);
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+/* ── Eva MAGI Decision Bar ────────────────────────────────────────────── */
+/* Only visible in Eva theme — fixed bottom bar showing MAGI system status */
+.magi-bar {
+  display: none; /* Hidden by default, shown only in Eva theme */
+}
+
+/* Reserve space at page bottom so MAGI bar doesn't cover content */
+[data-theme="eva"] .page {
+  bottom: 32px;
+}
+
+[data-theme="eva"] .magi-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  position: fixed;
+  bottom: 0;
+  left: 55px; /* Clear sidebar */
+  right: 0;
+  height: 28px;
+  background: linear-gradient(180deg, rgba(10,4,8,0.95) 0%, rgba(18,8,16,0.98) 100%);
+  border-top: 1px solid rgba(138,43,226,0.25);
+  z-index: 100;
+  font-family: 'Berkeley Mono', 'IBM Plex Mono', monospace;
+  padding: 0 20px;
+}
+
+[data-theme="eva"] .magi-system {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+[data-theme="eva"] .magi-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #dc2626;
+  text-transform: uppercase;
+}
+
+[data-theme="eva"] .magi-status {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+[data-theme="eva"] .magi-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 4px #16a34a, 0 0 8px rgba(22,163,74,0.3);
+  animation: magi-pulse 3s ease-in-out infinite;
+}
+
+[data-theme="eva"] .magi-melchior .magi-indicator {
+  animation-delay: 0s;
+}
+[data-theme="eva"] .magi-balthasar .magi-indicator {
+  animation-delay: 1s;
+}
+[data-theme="eva"] .magi-caspar .magi-indicator {
+  animation-delay: 2s;
+}
+
+@keyframes magi-pulse {
+  0%, 100% { opacity: 0.7; box-shadow: 0 0 4px #16a34a; }
+  50%      { opacity: 1; box-shadow: 0 0 8px #16a34a, 0 0 16px rgba(22,163,74,0.4); }
+}
+
+[data-theme="eva"] .magi-divider {
+  color: rgba(138,43,226,0.2);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+/* ── Eva Vocabulary Visual Enhancements ───────────────────────────────── */
+
+/* Make agent cards position:relative so ::after pseudo-element is anchored */
+[data-theme="eva"] .agent-card {
+  position: relative;
+}
+
+/* EVA unit designation labels in card corners */
+[data-theme="eva"] [data-agent-index="0"]::after { content: 'EVA-01'; }
+[data-theme="eva"] [data-agent-index="1"]::after { content: 'EVA-02'; }
+[data-theme="eva"] [data-agent-index="2"]::after { content: 'EVA-03'; }
+[data-theme="eva"] [data-agent-index="3"]::after { content: 'EVA-04'; }
+
+[data-theme="eva"] .agent-card::after {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 7px;
+  opacity: 0.5;
+  letter-spacing: 1px;
+  color: var(--agent-color, var(--text-secondary));
+  pointer-events: none;
+}
+
+/* Active card gets dramatic red inset glow */
+[data-theme="eva"] .agent-card.active {
+  box-shadow: inset 0 0 12px rgba(138,43,226,0.08);
+}
+
+/* PATTERN BLUE error state — ironic blue styling for the Angel threat alert */
+[data-theme="eva"] .state-error {
+  color: #3b82f6 !important;
+  text-shadow: 0 0 8px rgba(59,130,246,0.4);
+}
+
+/* Active state text bold with red glow */
+[data-theme="eva"] .state-thinking,
+[data-theme="eva"] .state-tool_running,
+[data-theme="eva"] .state-reading,
+[data-theme="eva"] .state-writing {
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(138,43,226,0.35);
+}

@@ -1,0 +1,5 @@
+# gitleaks ignore file — one fingerprint per line.
+# Format: <commit-sha>:<filepath>:<rule-id>:<line-number>
+# Or for path-only ignores: <filepath>:<rule-id>
+# Add entries here ONLY for confirmed false positives — never to silence real findings.
+# Empty by default; populated via `gitleaks detect --redact -v` output if false positives appear.

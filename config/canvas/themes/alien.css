@@ -1,0 +1,223 @@
+/* Alien — "MU-TH-UR 6000"
+   Nostromo ship computer. Green phosphor CRT, industrial, claustrophobic. */
+
+[data-theme="alien"] {
+  --bg-primary: #060808;
+  --bg-secondary: #080c08;
+  --bg-panel: #0a0e0a;
+  --bg-panel-alpha: rgba(10,14,10,0.82);
+  --panel-blur: 6px;
+  --bg-input: #060a06;
+  --border: rgba(74,222,128,0.15);
+  --border-active: rgba(74,222,128,0.25);
+  --text-primary: #4ade80;
+  --text-secondary: #5aaa70;
+  --text-dim: #489060;
+  --text-bright: #86efac;
+  --color-ok: #4ade80;
+  --color-error: #f59e0b;
+  --color-warning: #f59e0b;
+  --scanline-opacity: 0.10;
+  --scanline-color: rgba(74,222,128,0.5);
+  --vignette-intensity: 0.6;
+}
+
+/* Alien CRT vignette — now handled by universal .terminal-container::after */
+
+@keyframes alien-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.97; }
+}
+[data-theme="alien"] .terminal-container {
+  animation: alien-flicker 12s infinite;
+}
+
+[data-theme="alien"] .panel {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  --bg-header-alpha: rgba(10,14,10,0.65);
+}
+/* Phosphor burn glow — panels glow from edges like a CRT warming up */
+[data-theme="alien"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 0 30px rgba(74,222,128,0.04),
+    inset 0 2px 0 rgba(74,222,128,0.1),
+    inset 0 -1px 0 rgba(74,222,128,0.05);
+  animation: alien-phosphor-warm 6s ease-in-out infinite;
+}
+@keyframes alien-phosphor-warm {
+  0%, 100% { box-shadow: inset 0 0 30px rgba(74,222,128,0.03), inset 0 2px 0 rgba(74,222,128,0.08); }
+  50% { box-shadow: inset 0 0 50px rgba(74,222,128,0.06), inset 0 2px 0 rgba(74,222,128,0.15); }
+}
+[data-theme="alien"] .panel:nth-child(2)::after { animation-delay: -2s; }
+[data-theme="alien"] .panel:nth-child(3)::after { animation-delay: -4s; }
+/* Nostromo terminal corner marks */
+[data-theme="alien"] .panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 0 0 / 8px 1px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 0 0 / 1px 8px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 100% 0 / 8px 1px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 100% 0 / 1px 8px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 0 100% / 8px 1px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 0 100% / 1px 8px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 100% 100% / 8px 1px no-repeat,
+    linear-gradient(rgba(74,222,128,0.2), rgba(74,222,128,0.2)) 100% 100% / 1px 8px no-repeat;
+}
+
+[data-theme="alien"] .panel-title {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 9px;
+}
+
+[data-theme="alien"] .header-title {
+  letter-spacing: 3px;
+}
+
+[data-theme="alien"] .header-status::after {
+  content: 'SPECIAL ORDER 937';
+  font-size: 7px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-left: 12px;
+  opacity: 0.7;
+}
+
+/* ── Phase 2: Page Transitions ─────────────────────────────────────────── */
+@keyframes alien-leave {
+  0%   { opacity: 1; filter: brightness(1); }
+  30%  { opacity: 0.8; filter: brightness(1.3) contrast(1.2); }
+  60%  { opacity: 0.3; filter: brightness(0.6) contrast(2); }
+  100% { opacity: 0; filter: brightness(0); }
+}
+@keyframes alien-enter {
+  0%   { opacity: 0; filter: brightness(0); }
+  30%  { opacity: 0.2; filter: brightness(0.4); }
+  70%  { opacity: 0.7; filter: brightness(0.8); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+[data-theme="alien"] .page-leaving {
+  animation: alien-leave 0.2s ease-in forwards !important;
+}
+[data-theme="alien"] .page-entering {
+  animation: alien-enter 0.3s ease-out forwards !important;
+}
+
+/* Phase 2: Cryo frost — team card */
+[data-theme="alien"] .agent-offline {
+  filter: grayscale(1) brightness(0.3) contrast(1.3);
+  box-shadow: inset 0 0 15px rgba(180, 220, 255, 0.15);
+  border-color: rgba(180, 220, 255, 0.2) !important;
+}
+
+/* ── Alien Motion Tracker Radar ───────────────────────────────────────── */
+/* Only visible in Alien theme — bottom-right corner radar overlay */
+.motion-tracker {
+  display: none;
+}
+
+[data-theme="alien"] .motion-tracker {
+  display: block;
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 100px;
+  height: 110px;
+  z-index: 50;
+  opacity: 0.5;
+}
+
+[data-theme="alien"] .motion-tracker-svg {
+  width: 100px;
+  height: 100px;
+}
+
+/* Sweep line rotates continuously */
+[data-theme="alien"] .motion-sweep {
+  transform-origin: 60px 60px;
+  animation: alien-sweep 3s linear infinite;
+}
+
+@keyframes alien-sweep {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Blips pulse when sweep passes */
+[data-theme="alien"] .motion-blip {
+  animation: alien-blip-fade 3s ease-in-out infinite;
+}
+
+[data-theme="alien"] .motion-blip:nth-child(8) { animation-delay: 0s; }
+[data-theme="alien"] .motion-blip:nth-child(9) { animation-delay: 0.75s; }
+[data-theme="alien"] .motion-blip:nth-child(10) { animation-delay: 1.5s; }
+[data-theme="alien"] .motion-blip:nth-child(11) { animation-delay: 2.25s; }
+
+@keyframes alien-blip-fade {
+  0%, 10% { opacity: 0.8; r: 2.5; }
+  50%     { opacity: 0.2; r: 1.5; }
+  100%    { opacity: 0.8; r: 2.5; }
+}
+
+[data-theme="alien"] .motion-tracker-label {
+  font-family: 'Berkeley Mono', 'IBM Plex Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: rgba(74,222,128,0.4);
+  text-align: center;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ── Vocabulary / Life Signs Enhancements ─────────────────────────────── */
+
+/* Industrial panel header styling */
+[data-theme="alien"] .panel-header {
+  background: rgba(74,222,128,0.04);
+  border-bottom: 1px solid rgba(74,222,128,0.1);
+}
+
+/* CRYO state — dim */
+[data-theme="alien"] .state-idle,
+[data-theme="alien"] .state-stopping {
+  color: var(--text-dim) !important;
+}
+
+/* ACTIVE state — phosphor glow */
+[data-theme="alien"] .state-thinking,
+[data-theme="alien"] .state-tool_running,
+[data-theme="alien"] .state-reading,
+[data-theme="alien"] .state-writing,
+[data-theme="alien"] .state-dispatching,
+[data-theme="alien"] .state-speaking,
+[data-theme="alien"] .state-completed {
+  color: #4ade80 !important;
+  text-shadow: 0 0 4px rgba(74,222,128,0.3);
+}
+
+/* WAKING state — transitional glow */
+[data-theme="alien"] .state-starting {
+  color: #4ade80 !important;
+  opacity: 0.7;
+}
+
+/* WARNING state */
+[data-theme="alien"] .state-error {
+  color: #f59e0b !important;
+  text-shadow: 0 0 4px rgba(245,158,11,0.3);
+}
+
+/* Active agent card phosphor glow */
+[data-theme="alien"] .agent-card.active {
+  background: rgba(74,222,128,0.02);
+}

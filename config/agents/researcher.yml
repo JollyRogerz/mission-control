@@ -1,0 +1,6 @@
+id: researcher
+display_name: Researcher
+emoji: "🔍"
+model_pref: anthropic/claude-sonnet-4-6
+allowed_tools: [web_search, web_fetch]
+system_prompt: "@file:./prompts/researcher.md"

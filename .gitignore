@@ -1,0 +1,127 @@
+# ============================================
+# OpenClaw Sandbox — .gitignore
+# Only config/setup files are tracked.
+# Secrets, mounted repos, and runtime data are excluded.
+# ============================================
+
+# --- Secrets & Credentials ---
+.env
+*.pem
+config/openclaw_deploy_key
+config/openclaw_deploy_key.pub
+config/ssh_config
+config/security-suite.json
+config/gitconfig
+config/git-credential-github-app.sh
+config/github-token-helper.sh
+config/refresh-git-tokens.sh
+config/setup-git-auth.sh
+config/openclaw.json
+config/openclaw.json.bak*
+config/exec-approvals.json
+config/identity/device-auth.json
+config/identity/device.json
+
+# --- Mounted repos (already on hrznlabs org) ---
+horizon/
+horizon-contracts/
+horizon-docs/
+horizon-docs-public/
+horizon-miniapp/
+horizon-sdk/
+horizon-website/
+horizon-website-experimental-design/
+
+# --- Agent runtime data (sessions contain logs, agent/ dirs contain API keys) ---
+# Horizon-specific agent dirs contain API keys — exclude entirely.
+# Generic starter agent YAML + prompts are intentionally tracked (see !exceptions below).
+config/agents/horizon-*/
+config/agents/main/
+# Allow generic starter agent definitions and their prompt files
+!config/agents/assistant.yml
+!config/agents/researcher.yml
+!config/agents/prompts/
+!config/agents/prompts/assistant.md
+!config/agents/prompts/researcher.md
+
+# --- Runtime data ---
+logs/
+output/
+**/node_modules/
+config/logs/
+config/media/inbound/
+config/memory/*.sqlite
+config/memory/*.sqlite.tmp-*
+config/cron/runs/
+config/cron/jobs.json.bak
+config/subagents/runs.json
+config/devices/paired.json
+config/devices/pending.json
+config/telegram/
+config/settings/
+config/update-check.json
+workspace/
+
+# --- Agent workspace dirs (contain nested .git repos) ---
+config/workspace/
+config/workspace-mc-architect/
+config/workspace-mc-builder/
+config/workspace-mc-orchestrator/
+config/workspace-mc-social/
+
+# --- Build artifacts ---
+config/canvas/dist/
+
+# --- Editor & OS ---
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+
+# --- Backups ---
+config/CLAUDE.md.bak
+config/CLAUDE.md.tmp
+docker-compose.yml.bak
+
+# --- Nested git repos ---
+openclaw-vtuber/Open-LLM-VTuber/
+
+# --- Security suite runtime ---
+.security-suite/
+
+# ── Phase 05 HARDEN-04 (do not edit above this line) ─────────────
+# SQLite (mission-control DB + sidecars)
+*.db
+*.db-shm
+*.db-wal
+
+# Environment & secrets
+.env.*
+!.env.example
+secrets/
+config/identity/
+
+# Backups & temp
+*.bak
+*.bak.*
+
+# Runtime artefacts
+uploads/
+
+# Plan 05-10 HARDEN-06: untracked paths that triggered SC-2 false positives
+# Runtime deps unpacked at install (Phase 4 adapters); never commit
+config/plugin-runtime-deps/
+# Device identity is per-machine; bootstrap regenerates
+config/bridge-device-identity.json
+
+# Plan 05-13: local archives + per-install dev configs
+# _outdated/ holds historical agent training docs containing example tokens; never ships
+_outdated/
+# Canvas dashboard runtime config; bootstrap regenerates from .example with per-install token
+config/canvas/mission-control.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
