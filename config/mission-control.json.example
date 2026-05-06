@@ -1,0 +1,10 @@
+{
+  "bridge_url": "http://127.0.0.1:8100",
+  "bridge_token": "<your-bridge-token>",
+  "ui": {
+    "theme": "eva",
+    "polling_ms": 2000
+  },
+  "agents_dir": "config/agents",
+  "notes": "bridge_token must match BRIDGE_AUTH_TOKEN env var used by bridge_server.py"
+}

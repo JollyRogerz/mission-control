@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mission Control</title>
+  <!-- Flash prevention — apply saved theme before paint -->
+  <script>document.documentElement.dataset.theme = localStorage.getItem('mc_theme') || 'eva';</script>
+  <link rel="stylesheet" href="terminal.css?v=10" />
+  <link rel="stylesheet" href="sprites.css?v=10" />
+  <!-- Inline overrides — bypasses WebKit CSS caching -->
+  <style>
+    .memory-file { color: #e0e6f0 !important; }
+    .memory-file:hover { color: #fff !important; background: rgba(255,255,255,0.06) !important; }
+    .memory-file.active { color: #fff !important; background: rgba(255,255,255,0.1) !important; font-weight: 600; }
+    .calendar-job-detail { color: #e0e6f0 !important; }
+    .calendar-job-time { color: #e0e6f0 !important; }
+    .calendar-countdown { color: #e0e6f0 !important; }
+    .calendar-countdown-label { color: #e0e6f0 !important; }
+    .team-card-model { color: #aab4c0 !important; }
+  </style>
+  <!-- Theme CSS AFTER base styles so [data-theme] overrides :root (same specificity, later wins) -->
+  <link id="theme-css" rel="stylesheet" href="themes/eva.css">
+</head>
+<body>
+
+<!-- Theme ambient background canvas (behind panels) -->
+<canvas id="theme-bg-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+<!-- Theme foreground overlay canvas (on top of panels — for VHS glitches, scan lines, etc.) -->
+<canvas id="theme-fg-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;pointer-events:none;"></canvas>
+
+<div class="terminal-root">
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header class="terminal-header">
+    <div class="header-title">
+      <span>&#9619;</span> MISSION CONTROL <span>&#9619;</span>
+    </div>
+    <div class="header-status">
+      <span class="heartbeat-dot" id="heartbeat-indicator"></span>
+      <span id="theme-indicator" class="header-theme-pill" title="Click to switch theme"></span>
+      <button class="audio-toggle-btn" id="audio-toggle-btn" title="Toggle audio notifications">&#128266;</button>
+      <button class="reset-layout-btn" id="reset-layout-btn" title="Reset panel layout">Reset Layout</button>
+      <div class="status-indicator">
+        <div class="status-dot" id="gateway-dot" title="Gateway — OpenClaw Docker via bridge relay · disconnected"></div>
+        <span id="gateway-label">Gateway</span>
+      </div>
+      <div class="status-indicator">
+        <div class="status-dot" id="bridge-dot" title="Bridge — HTTP/WS to bridge_server.py · disconnected"></div>
+        <span id="bridge-label">Bridge</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════ MAIN LAYOUT: SIDEBAR + PAGES ═══════════════ -->
+  <div class="main-layout">
+
+    <!-- ─── SIDEBAR NAVIGATION ─── -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">MC</div>
+      <button class="sidebar-btn active" data-page="dashboard" title="Dashboard">&#127919;</button>
+      <button class="sidebar-btn" data-page="tasks" title="Tasks">&#128203;</button>
+      <button class="sidebar-btn" data-page="memory" title="Memory">&#129504;</button>
+      <button class="sidebar-btn" data-page="calendar" title="Calendar">&#128197;</button>
+      <button class="sidebar-btn" data-page="team" title="Team">&#128101;</button>
+      <button class="sidebar-btn" data-page="costs" title="Costs">&#128176;</button>
+      <button class="sidebar-btn" data-page="analytics" title="Analytics">&#128202;</button>
+      <button class="sidebar-btn" data-page="approvals" title="Approvals">&#9989;</button>
+      <div class="sidebar-spacer"></div>
+      <button class="sidebar-btn" data-page="chat" title="Chat">&#128172;</button>
+      <button class="sidebar-btn" id="theme-switcher-btn" title="Switch Theme">🎨</button>
+    </nav>
+
+    <!-- ─── PAGE CONTAINER ─── -->
+    <div class="page-container" id="page-container">
+
+      <!-- ═══════════════ PAGE: DASHBOARD ═══════════════ -->
+      <div class="page active" id="page-dashboard">
+
+        <!-- FEAT-VIZ: Task chain breadcrumb bar -->
+        <div class="task-chain-bar" id="task-chain-bar" style="display:none;">
+          <span class="task-chain-label">CHAIN:</span>
+          <span class="task-chain-path" id="task-chain-path"></span>
+          <span class="task-chain-depth" id="task-chain-depth"></span>
+        </div>
+
+        <!-- FEAT-VIZ: SVG overlay for connection lines between agent panels -->
+        <svg class="connection-overlay" id="connection-overlay"
+             xmlns="http://www.w3.org/2000/svg"
+             style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;">
+          <defs>
+            <!-- Orb glow — soft bloom for floating light particles -->
+            <filter id="glow-filter" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="3" result="bloom"/>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="soft"/>
+              <feMerge>
+                <feMergeNode in="bloom"/>
+                <feMergeNode in="soft"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+
+        <div class="grid-container" id="grid-dashboard">
+
+          <!-- ─── AGENT CARD TEMPLATE — cloned per agent by AgentPanel.initAgents() ─── -->
+          <!-- AGENT_ID is a literal placeholder; AgentPanel.js replaces it at clone time -->
+          <template id="agent-card-template">
+            <div class="agent-card" id="card-AGENT_ID">
+              <div class="agent-sprite-area">
+                <div class="agent-sprite-container state-idle" id="sprite-AGENT_ID">
+                  <div class="monitor-screen"></div>
+                  <div class="monitor-content"></div>
+                  <div class="desk-sprite"></div>
+                  <div class="agent-sprite"></div>
+                  <div class="agent-shadow"></div>
+                </div>
+              </div>
+              <div class="agent-details">
+                <div class="detail-row"><span class="detail-label">State</span><span class="detail-value state-idle" id="state-AGENT_ID">idle</span></div>
+                <div class="detail-row"><span class="detail-label">Model</span><span class="detail-value" id="model-AGENT_ID">&mdash;</span></div>
+                <div class="detail-row"><span class="detail-label">Tool</span><span class="detail-value" id="tool-AGENT_ID">&mdash;</span></div>
+                <div class="detail-row"><span class="detail-label">Tokens</span><span class="detail-value" id="tokens-AGENT_ID">0 / 0</span></div>
+                <div class="detail-row"><span class="detail-label">Uptime</span><span class="detail-value" id="uptime-AGENT_ID">&mdash;</span></div>
+                <div class="detail-row"><span class="detail-label">Last seen</span><span class="detail-value" id="lastseen-AGENT_ID">&mdash;</span></div>
+                <div class="detail-row"><span class="detail-label">Errors</span><span class="detail-value" id="errors-AGENT_ID">0</span></div>
+                <canvas class="agent-sparkline" width="80" height="20" style="width:80px;height:20px;margin-top:4px;opacity:0.6;"></canvas>
+              </div>
+            </div>
+          </template>
+
+          <!-- ─── ACTIVITY FEED PANEL ─── -->
+          <div class="panel" id="panel-feed">
+            <div class="panel-header">
+              <div class="panel-header-row">
+                <span class="panel-title">ACTIVITY</span>
+                <div class="panel-header-controls">
+                  <div class="tab-group">
+                    <button class="tab-btn active" id="tab-feed" data-tab="feed">Feed</button>
+                    <button class="tab-btn" id="tab-raw" data-tab="raw">Raw Logs</button>
+                  </div>
+                  <input type="text" class="log-search hidden" id="log-search" placeholder="filter..." />
+                  <button class="regex-toggle hidden" id="regex-toggle" title="Toggle regex mode">.*</button>
+                  <button class="auto-scroll-toggle active" id="auto-scroll-btn">Auto-scroll</button>
+                </div>
+              </div>
+              <!-- Agent filter chips — populated dynamically by ChatManager from AgentPanel._agents cache -->
+              <div class="agent-chips" id="chat-chips"></div>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div class="activity-panel active" id="panel-feed-content"></div>
+              <div class="activity-panel" id="panel-raw"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+
+          <!-- ─── APPROVALS PANEL ─── -->
+          <div class="panel" id="panel-approvals">
+            <div class="panel-header" style="--panel-accent: #f59e0b">
+              <span class="panel-title">&#9989; APPROVALS</span>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div id="approval-panel-content"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: TASKS ═══════════════ -->
+      <div class="page" id="page-tasks">
+        <div class="tasks-page-layout">
+
+          <!-- ─── GOAL TREE SIDEBAR ─── -->
+          <div class="goal-sidebar" id="goal-sidebar">
+            <div class="goal-sidebar-header">
+              <span class="goal-sidebar-title">&#127919; GOALS</span>
+              <button class="add-goal-btn" id="add-goal-btn" title="Add new goal">+</button>
+            </div>
+            <div class="goal-tree" id="goal-tree">
+              <div class="goal-tree-placeholder">Loading goals...</div>
+            </div>
+          </div>
+
+          <!-- ─── TASK BOARD (existing) ─── -->
+          <div class="grid-container" id="grid-tasks">
+            <div class="panel" id="panel-tasks">
+              <div class="panel-header" style="--panel-accent: #a78bfa">
+                <span class="panel-title">&#128203; TASK BOARD</span>
+                <div class="panel-header-controls">
+                  <button class="add-task-btn" id="add-task-btn" title="Add new task">+ Add Task</button>
+                  <button class="archive-btn" id="archive-btn" title="Archive done &amp; failed tasks">&#128230; Archive</button>
+                </div>
+              </div>
+              <div class="panel-content panel-content-flex">
+                <div class="kanban-board" id="kanban-board">
+                  <div class="kanban-column" data-status="todo">
+                    <div class="kanban-column-header">
+                      <span class="kanban-column-title">&#128203; TODO</span>
+                      <span class="kanban-column-count" id="count-todo">0</span>
+                    </div>
+                    <div class="kanban-cards" id="cards-todo"></div>
+                  </div>
+                  <div class="kanban-column" data-status="in_progress">
+                    <div class="kanban-column-header">
+                      <span class="kanban-column-title">&#128260; IN PROGRESS</span>
+                      <span class="kanban-column-count" id="count-in_progress">0</span>
+                    </div>
+                    <div class="kanban-cards" id="cards-in_progress"></div>
+                  </div>
+                  <div class="kanban-column" data-status="done">
+                    <div class="kanban-column-header">
+                      <span class="kanban-column-title">&#9989; DONE</span>
+                      <span class="kanban-column-count" id="count-done">0</span>
+                    </div>
+                    <div class="kanban-cards" id="cards-done"></div>
+                  </div>
+                  <div class="kanban-column kanban-column-failed" data-status="failed">
+                    <div class="kanban-column-header">
+                      <span class="kanban-column-title">&#10060; FAILED</span>
+                      <span class="kanban-column-count" id="count-failed">0</span>
+                    </div>
+                    <div class="kanban-cards" id="cards-failed"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-resize"></div>
+            </div>
+          </div>
+
+        </div><!-- /tasks-page-layout -->
+      </div>
+
+      <!-- ═══════════════ PAGE: MEMORY ═══════════════ -->
+      <div class="page" id="page-memory">
+        <div class="grid-container" id="grid-memory">
+          <div class="panel" id="panel-memory">
+            <div class="panel-header" style="--panel-accent: #ec4899">
+              <span class="panel-title">&#129504; MEMORY VIEWER</span>
+              <div class="panel-header-controls">
+                <input type="text" class="memory-search" id="memory-search" placeholder="Search memories..." />
+              </div>
+            </div>
+            <div class="panel-content panel-content-flex">
+              <div class="memory-layout">
+                <div class="memory-tree" id="memory-tree">
+                  <div class="memory-tree-placeholder">Loading memories...</div>
+                </div>
+                <div class="memory-viewer" id="memory-viewer">
+                  <div class="memory-viewer-placeholder">Select a file to view</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: CALENDAR ═══════════════ -->
+      <div class="page" id="page-calendar">
+        <div class="grid-container" id="grid-calendar">
+          <div class="panel" id="panel-calendar">
+            <div class="panel-header" style="--panel-accent: #06b6d4">
+              <span class="panel-title">&#128197; SCHEDULED TASKS</span>
+              <div class="panel-header-controls">
+                <span class="calendar-date" id="calendar-date"></span>
+                <button class="add-task-btn" id="add-job-btn" title="Create new scheduled job">+ New Job</button>
+              </div>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div class="calendar-timeline" id="calendar-timeline">
+                <div class="calendar-placeholder">Loading schedule...</div>
+              </div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: TEAM ═══════════════ -->
+      <div class="page" id="page-team">
+        <div class="grid-container" id="grid-team">
+          <div class="panel" id="panel-team">
+            <div class="panel-header" style="--panel-accent: #f97316">
+              <span class="panel-title">&#128101; TEAM STRUCTURE</span>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div class="team-grid" id="team-grid">
+                <div class="team-placeholder">Loading team data...</div>
+              </div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: COSTS ═══════════════ -->
+      <div class="page" id="page-costs">
+        <div class="grid-container" id="grid-costs">
+
+          <!-- Cost Tracking Panel -->
+          <div class="panel" id="panel-costs">
+            <div class="panel-header" style="--panel-accent: #22c55e">
+              <span class="panel-title">&#128176; COST TRACKER</span>
+              <div class="panel-header-controls">
+                <button class="export-btn" id="export-cost-btn" title="Export cost report">Export</button>
+              </div>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div id="cost-panel-content"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+
+          <!-- Activity Charts Panel -->
+          <div class="panel" id="panel-activity-charts">
+            <div class="panel-header" style="--panel-accent: #8b5cf6">
+              <span class="panel-title">&#128200; ACTIVITY CHARTS</span>
+              <div class="panel-header-controls">
+                <button class="export-btn" id="export-audit-btn" title="Export audit log">Export Audit</button>
+              </div>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div id="activity-charts-content"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: ANALYTICS ═══════════════ -->
+      <div class="page" id="page-analytics">
+        <div class="grid-container" id="grid-analytics">
+          <div class="panel" id="panel-analytics">
+            <div class="panel-header" style="--panel-accent: #06b6d4">
+              <span class="panel-title">&#128202; ACTIVITY</span>
+            </div>
+            <div class="panel-content panel-content-scroll">
+              <div id="analytics-panel-content"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: APPROVALS ═══════════════ -->
+      <div class="page" id="page-approvals">
+        <div class="grid-container" id="grid-approvals">
+          <!-- panel-approvals is a SHARED_PANEL relocated from dashboard -->
+        </div>
+      </div>
+
+      <!-- ═══════════════ PAGE: CHAT ═══════════════ -->
+      <div class="page" id="page-chat">
+        <div class="chat-page-layout">
+
+          <!-- Dynamic agent sidebar — populated by ChatManager from AgentPanel._agents cache -->
+          <div class="chat-agent-sidebar" id="chat-agent-sidebar">
+            <!-- Agent cards rendered dynamically by ChatManager.initChatAgents() -->
+            <div id="chat-agent-list"></div>
+            <div class="chat-agent-empty" id="chat-agent-empty">No active agents</div>
+          </div>
+
+          <!-- Chat panel grid -->
+          <div class="grid-container" id="grid-chat">
+            <div class="panel" id="panel-chat">
+              <div class="panel-header">
+                <span class="panel-title">CHAT</span>
+                <div class="panel-header-controls">
+                  <select class="export-format" id="export-format" title="Export format">
+                    <option value="json">JSON</option>
+                    <option value="md">Markdown</option>
+                  </select>
+                  <button class="export-btn" id="export-btn" title="Export chat session">Export</button>
+                </div>
+              </div>
+              <div class="panel-content panel-content-flex">
+                <div class="chat-messages" id="chat-messages">
+                  <div class="chat-msg chat-msg-agent">
+                    <span class="chat-sender color-orchestrator">&#127919; System</span>
+                    <span class="chat-text">Mission Control initialized. Waiting for gateway connection...</span>
+                  </div>
+                </div>
+                <div class="chat-attachment-preview" id="chat-attachment-preview">
+                  <img id="chat-preview-img" alt="preview" />
+                  <div class="chat-attachment-info">
+                    <span id="chat-attachment-name"></span>
+                    <span id="chat-attachment-size"></span>
+                  </div>
+                  <button class="chat-attachment-remove" id="chat-attachment-remove" title="Remove attachment">&#10005;</button>
+                </div>
+                <div class="chat-input-bar">
+                  <span class="chat-prompt">&gt;</span>
+                  <input type="file" id="chat-file-input" accept="image/*" style="display:none" />
+                  <button class="chat-attach-btn" id="chat-attach-btn" title="Attach image (screenshot, photo)">&#128206;</button>
+                  <input type="text" class="chat-input" id="chat-input" placeholder="type a message..." autocomplete="off" maxlength="5000" />
+                  <span class="chat-char-count" id="chat-char-count">5000</span>
+                  <!-- Agent select options rendered dynamically by ChatManager.initChatAgents() -->
+                  <select class="agent-select" id="agent-select">
+                    <option value="">Auto</option>
+                  </select>
+                  <button class="chat-send-btn" id="chat-send-btn">Send</button>
+                </div>
+              </div>
+              <div class="panel-resize"></div>
+            </div>
+          </div>
+
+        </div><!-- /chat-page-layout -->
+      </div>
+
+    </div><!-- /page-container -->
+  </div><!-- /main-layout -->
+
+  <!-- Predator Targeting Overlay -->
+  <div class="predator-hud" id="predator-hud">
+    <svg viewBox="0 0 200 200" class="predator-reticle">
+      <polygon points="100,15 175,155 25,155" fill="none" stroke="rgba(239,68,68,0.12)" stroke-width="1"/>
+      <polygon points="100,35 160,140 40,140" fill="none" stroke="rgba(239,68,68,0.08)" stroke-width="0.5"/>
+    </svg>
+    <div class="predator-dots">
+      <span class="predator-dot"></span>
+      <span class="predator-dot"></span>
+      <span class="predator-dot"></span>
+    </div>
+  </div>
+
+  <!-- Alien Motion Tracker -->
+  <div class="motion-tracker" id="motion-tracker">
+    <svg viewBox="0 0 120 120" class="motion-tracker-svg">
+      <!-- Radar rings -->
+      <circle cx="60" cy="60" r="55" fill="none" stroke="rgba(74,222,128,0.1)" stroke-width="0.5"/>
+      <circle cx="60" cy="60" r="40" fill="none" stroke="rgba(74,222,128,0.08)" stroke-width="0.5"/>
+      <circle cx="60" cy="60" r="25" fill="none" stroke="rgba(74,222,128,0.06)" stroke-width="0.5"/>
+      <!-- Crosshairs -->
+      <line x1="60" y1="5" x2="60" y2="115" stroke="rgba(74,222,128,0.06)" stroke-width="0.5"/>
+      <line x1="5" y1="60" x2="115" y2="60" stroke="rgba(74,222,128,0.06)" stroke-width="0.5"/>
+      <!-- Sweep line -->
+      <line x1="60" y1="60" x2="60" y2="5" stroke="rgba(74,222,128,0.6)" stroke-width="1" class="motion-sweep"/>
+      <!-- Static blips (agent positions) -->
+      <circle cx="45" cy="35" r="2" fill="#4ade80" opacity="0.7" class="motion-blip"/>
+      <circle cx="78" cy="42" r="2" fill="#4ade80" opacity="0.5" class="motion-blip"/>
+      <circle cx="38" cy="72" r="2" fill="#4ade80" opacity="0.6" class="motion-blip"/>
+      <circle cx="82" cy="75" r="2" fill="#4ade80" opacity="0.4" class="motion-blip"/>
+    </svg>
+    <div class="motion-tracker-label">MOTION TRACKER</div>
+  </div>
+
+  <!-- Eva MAGI Decision Bar -->
+  <div class="magi-bar" id="magi-bar">
+    <div class="magi-system magi-melchior">
+      <div class="magi-label">MELCHIOR-1</div>
+      <div class="magi-status">NOMINAL</div>
+      <div class="magi-indicator"></div>
+    </div>
+    <div class="magi-divider">|</div>
+    <div class="magi-system magi-balthasar">
+      <div class="magi-label">BALTHASAR-2</div>
+      <div class="magi-status">NOMINAL</div>
+      <div class="magi-indicator"></div>
+    </div>
+    <div class="magi-divider">|</div>
+    <div class="magi-system magi-caspar">
+      <div class="magi-label">CASPAR-3</div>
+      <div class="magi-status">NOMINAL</div>
+      <div class="magi-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ AUTH MODAL ═══════════════ -->
+<div class="auth-modal-overlay" id="auth-modal">
+  <div class="auth-modal">
+    <h2>&#9619; Connect to Mission Control</h2>
+    <label for="auth-bridge-token">Bridge Auth Token</label>
+    <input type="password" id="auth-bridge-token" placeholder="BRIDGE_AUTH_TOKEN from bridge server" />
+    <div class="hint">Shown in the bridge server logs on startup. Used for WebSocket events and chat relay.</div>
+
+    <label for="auth-gateway-token">Gateway Auth Token <span style="color:var(--text-dim)">(fallback)</span></label>
+    <input type="password" id="auth-gateway-token" placeholder="from openclaw.json &rarr; gateway.auth.token" />
+    <div class="hint">Used if bridge token is not set. Found in config/openclaw.json under gateway.auth.token</div>
+
+    <button class="auth-connect-btn" id="auth-connect-btn">Connect</button>
+  </div>
+</div>
+
+<script src="grid.js?v=10"></script>
+<script src="terminal.js?v=10"></script>
+<script src="EventHandler.js?v=10"></script>
+<script src="ChatManager.js?v=10"></script>
+<script src="AgentPanel.js?v=10"></script>
+<script src="SoundEngine.js?v=10"></script>
+<script src="TraceViewer.js?v=10"></script>
+<script src="FeedManager.js?v=10"></script>
+<script src="TaskBoardManager.js?v=10"></script>
+<script src="GoalManager.js?v=10"></script>
+<script src="MemoryManager.js?v=10"></script>
+<script src="CalendarManager.js?v=10"></script>
+<script src="TeamManager.js?v=10"></script>
+<script src="ConnectionManager.js?v=10"></script>
+<script src="TimelineManager.js?v=10"></script>
+<script src="CostPanel.js?v=10"></script>
+<script src="ApprovalPanel.js?v=10"></script>
+<script src="CommandPalette.js?v=10"></script>
+<script src="ActivityCharts.js?v=10"></script>
+<script src="AnalyticsPanel.js?v=10"></script>
+<!-- Pretext canvas effects library -->
+<script src="PretextEffects.js?v=10"></script>
+<script src="AsciiOrbs.js?v=10"></script>
+<!-- Animation library (vendored animejs@3.2.2 MIT) -->
+<script src="static/vendor/animejs.min.js"></script>
+<!-- Pretext — pure JS text measurement & canvas layout (vendored @chenglou/pretext MIT) -->
+<script type="module">
+import { prepareWithSegments, layoutWithLines } from './static/vendor/pretext.js';
+window.__pretext = { prepareWithSegments, layoutWithLines };
+</script>
+<!-- Theme system -->
+<script src="ThemeEngine.js?v=1"></script>
+<script src="ThemeSwitcherUI.js?v=1"></script>
+<!-- Theme modules (self-register on load) -->
+<script src="themes/bebop.js?v=1"></script>
+<script src="themes/gits.js?v=1"></script>
+<script src="themes/eva.js?v=1"></script>
+<script src="themes/matrix.js?v=1"></script>
+<script src="themes/alien.js?v=1"></script>
+<script src="themes/predator.js?v=1"></script>
+</body>
+</html>

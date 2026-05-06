@@ -1,0 +1,13 @@
+# Phase 05 HARDEN-02: pre-commit gitleaks hook (pinned to v8.30.1)
+# Install pre-commit framework: `pip install pre-commit && pre-commit install`
+# bootstrap.sh runs both lines automatically.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        name: Detect hardcoded secrets
+        description: Run gitleaks on staged diffs; block commit if findings.
+        language: golang
+        entry: gitleaks protect --staged --redact --verbose
+        pass_filenames: false

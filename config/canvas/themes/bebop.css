@@ -1,0 +1,219 @@
+/* Cowboy Bebop — "The Bebop"
+   Warm amber monochrome CRT. 1970s space tech. */
+
+[data-theme="bebop"] {
+  --bg-primary: #0c0a06;
+  --bg-secondary: #110e08;
+  --bg-panel: #140f08;
+  --bg-panel-alpha: rgba(20,15,8,0.55);
+  --panel-blur: 8px;
+  --bg-input: #0e0a05;
+  --border: rgba(217,160,60,0.2);
+  --border-active: rgba(217,160,60,0.35);
+  --text-primary: #d9a03c;
+  --text-secondary: #c4aa68;
+  --text-dim: #9a8a58;
+  --text-bright: #f0d080;
+  --color-ok: #5a9a4a;
+  --color-error: #c44a34;
+  --color-warning: #d9a03c;
+  --scanline-opacity: 0.15;
+  --scanline-color: rgba(217,160,60,0.4);
+  --vignette-intensity: 0.55;
+}
+
+/* Bebop CRT vignette — now handled by universal .terminal-container::after */
+
+/* Bebop panel borders — chunky amber with VHS chromatic aberration */
+[data-theme="bebop"] .panel {
+  border-width: 2px;
+  border-color: var(--border);
+  --bg-header-alpha: rgba(20,15,8,0.7);
+}
+/* VHS chromatic aberration — red/cyan edge offset on panels */
+[data-theme="bebop"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 1px 0 0 rgba(239,68,68,0.06),
+    inset -1px 0 0 rgba(100,200,255,0.04),
+    inset 0 1px 0 rgba(217,160,60,0.08);
+  animation: bebop-vhs-jitter 0.15s steps(2) infinite;
+}
+@keyframes bebop-vhs-jitter {
+  0% { box-shadow:
+    inset 1px 0 0 rgba(239,68,68,0.06),
+    inset -1px 0 0 rgba(100,200,255,0.04),
+    inset 0 1px 0 rgba(217,160,60,0.08);
+  }
+  50% { box-shadow:
+    inset 2px 0 0 rgba(239,68,68,0.08),
+    inset -2px 0 0 rgba(100,200,255,0.06),
+    inset 0 1px 0 rgba(217,160,60,0.06);
+  }
+}
+[data-theme="bebop"] .panel:nth-child(odd)::after { animation-delay: -0.07s; }
+/* Warm vinyl-groove glow — top light, bottom shadow */
+[data-theme="bebop"] .panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 2px 12px -4px rgba(217,160,60,0.12),
+    inset 0 -2px 12px -4px rgba(0,0,0,0.3);
+}
+/* VHS tracking lines that occasionally appear */
+@keyframes bebop-tracking-noise {
+  0%, 85%, 100% { opacity: 0; }
+  88% { opacity: 0.4; transform: translateX(2px); }
+  92% { opacity: 0.2; transform: translateX(-1px); }
+}
+[data-theme="bebop"] .panel:nth-child(2)::after { animation-delay: -2s; animation-duration: 10s; }
+[data-theme="bebop"] .panel:nth-child(3)::after { animation-delay: -4s; animation-duration: 7s; }
+[data-theme="bebop"] .panel:nth-child(4)::after { animation-delay: -6s; }
+/* Warm vinyl-groove edge — top light, bottom shadow */
+[data-theme="bebop"] .panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 2px 12px -4px rgba(217,160,60,0.12),
+    inset 0 -2px 12px -4px rgba(0,0,0,0.3);
+}
+
+/* Bebop text glow on headings */
+[data-theme="bebop"] .panel-title,
+[data-theme="bebop"] .header-title {
+  text-shadow: 0 0 8px rgba(217,160,60,0.3);
+}
+
+/* Bebop flicker animation */
+@keyframes bebop-flicker {
+  0%, 95%, 100% { opacity: 1; }
+  96% { opacity: 0.9; }
+  98% { opacity: 0.95; }
+}
+[data-theme="bebop"] .terminal-container {
+  animation: bebop-flicker 5s infinite;
+}
+
+/* Bebop progress bars — block character style */
+[data-theme="bebop"] .state-badge {
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Bebop status bar tagline */
+[data-theme="bebop"] .header-status::after {
+  content: 'SEE YOU SPACE COWBOY...';
+  font-size: 7px;
+  color: #5a9a4a;
+  letter-spacing: 1px;
+  margin-left: 12px;
+  opacity: 0.6;
+}
+
+/* ── Phase 2: Page Transitions ─────────────────────────────────────────── */
+@keyframes bebop-leave {
+  0%   { transform: scaleY(1); opacity: 1; filter: brightness(1); }
+  60%  { transform: scaleY(0.01); opacity: 1; filter: brightness(2); }
+  100% { transform: scaleY(0); opacity: 0; filter: brightness(0); }
+}
+@keyframes bebop-enter {
+  0%   { transform: scaleY(0); opacity: 0; filter: brightness(2); }
+  40%  { transform: scaleY(0.01); opacity: 1; filter: brightness(2); }
+  100% { transform: scaleY(1); opacity: 1; filter: brightness(1); }
+}
+[data-theme="bebop"] .page-leaving {
+  animation: bebop-leave 0.25s ease-in forwards !important;
+}
+[data-theme="bebop"] .page-entering {
+  animation: bebop-enter 0.3s ease-out forwards !important;
+}
+
+/* Phase 2: CRT dot — powered-down team card */
+[data-theme="bebop"] .agent-offline {
+  filter: grayscale(1) brightness(0.3);
+  position: relative;
+}
+[data-theme="bebop"] .agent-offline::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px var(--text-primary);
+}
+
+/* ── Bebop Block Character Style ──────────────────────────────────────── */
+/* Make progress bars use block characters ████░░ */
+[data-theme="bebop"] .token-bar,
+[data-theme="bebop"] .usage-bar {
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: -1px;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* Warm amber glow on all text */
+[data-theme="bebop"] .panel-content {
+  text-shadow: 0 0 4px rgba(217,160,60,0.15);
+}
+
+/* Ship's log feel — monospace everything */
+[data-theme="bebop"] .detail-row,
+[data-theme="bebop"] .detail-label,
+[data-theme="bebop"] .detail-value {
+  font-family: 'Courier New', 'Courier', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Vintage CRT warm scan line overlay */
+[data-theme="bebop"] .terminal-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(217,160,60,0.02) 2px,
+    rgba(217,160,60,0.02) 4px
+  );
+}
+
+/* ── Bebop Vocabulary Visual Enhancements ─────────────────────────────── */
+
+/* Active agent card amber glow */
+[data-theme="bebop"] .agent-card.active {
+  background: rgba(217,160,60,0.03);
+  border-color: rgba(217,160,60,0.25);
+}
+
+/* Chunky 2px borders on agent details */
+[data-theme="bebop"] .agent-details {
+  border-top: 2px solid rgba(217,160,60,0.15);
+}
+
+/* CRT warm text glow on active states */
+[data-theme="bebop"] .state-tool_running,
+[data-theme="bebop"] .state-thinking {
+  text-shadow: 0 0 6px rgba(217,160,60,0.4);
+}

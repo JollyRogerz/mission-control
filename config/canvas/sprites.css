@@ -1,0 +1,1745 @@
+/* ============================================================
+   Mission Control Terminal — CSS Pixel Art Sprites
+   ============================================================
+   Technique: box-shadow pixel art on 1x1px elements, scaled 3x.
+   Each shadow = "Xpx Ypx 0 COLOR" where X,Y is the pixel coord.
+   Background assumption: #0a0a0f dark terminal.
+   ============================================================ */
+
+/* ── Base containers ────────────────────────────────────────── */
+
+.agent-sprite-container {
+  position: relative;
+  width: 96px;   /* ~32 * 3 */
+  height: 132px; /* ~44 * 3 */
+  margin: 0 auto;
+}
+
+.agent-sprite {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  transform: scale(3);
+  transform-origin: top left;
+  image-rendering: pixelated;
+  z-index: 2;
+}
+
+.desk-sprite {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  transform: scale(3);
+  transform-origin: top left;
+  image-rendering: pixelated;
+  z-index: 1;
+}
+
+.monitor-screen {
+  position: absolute;
+  width: 30px;  /* 10 * 3 */
+  height: 18px; /* 6 * 3 */
+  border-radius: 1px;
+  z-index: 0;
+  transition: background 0.6s ease, box-shadow 0.6s ease;
+  background: #1a1a2e;
+}
+
+
+/* ============================================================
+   1. ORCHESTRATOR  —  Gold / Amber  (#f59e0b)
+   🎯 Command-center figure with headset
+   ============================================================
+
+   Pixel map (origin top-left, character body):
+   Row 0:  headset antenna at x11
+   Row 1:  headset arm x8, head x10-14
+   Row 2:  headset mic x8, head x10-14
+   Row 3:  headset mic x9, eyes x10,x14, head fill
+   Row 4:  head x10-14, mouth x12
+   Row 5:  neck x12
+   Row 6-7: body shoulders x9-15
+   Row 8-9: body torso x10-14
+   Row 10: belt/waist x10-14
+   Row 11-12: legs x10-11, x13-14
+   Row 13: feet x9-11, x13-15
+*/
+
+.sprite-orchestrator {
+  box-shadow:
+    /* ── Headset antenna ── */
+    11px 0 0 #d97706,
+
+    /* ── Head row 1: headset arm + hair/head top ── */
+    8px 1px 0 #92400e,
+    10px 1px 0 #f59e0b,
+    11px 1px 0 #fbbf24,
+    12px 1px 0 #fbbf24,
+    13px 1px 0 #f59e0b,
+
+    /* ── Head row 2: headset + face ── */
+    8px 2px 0 #92400e,
+    9px 2px 0 #92400e,
+    10px 2px 0 #fde68a,
+    11px 2px 0 #fde68a,
+    12px 2px 0 #fde68a,
+    13px 2px 0 #fde68a,
+    14px 2px 0 #f59e0b,
+
+    /* ── Head row 3: mic + eyes ── */
+    9px 3px 0 #78350f,
+    10px 3px 0 #fde68a,
+    11px 3px 0 #1a1a2e,
+    12px 3px 0 #fde68a,
+    13px 3px 0 #1a1a2e,
+    14px 3px 0 #fde68a,
+
+    /* ── Head row 4: mouth ── */
+    10px 4px 0 #fde68a,
+    11px 4px 0 #fde68a,
+    12px 4px 0 #d97706,
+    13px 4px 0 #fde68a,
+    14px 4px 0 #fde68a,
+
+    /* ── Neck ── */
+    12px 5px 0 #fde68a,
+
+    /* ── Body row 6: shoulders ── */
+    9px 6px 0 #f59e0b,
+    10px 6px 0 #f59e0b,
+    11px 6px 0 #d97706,
+    12px 6px 0 #d97706,
+    13px 6px 0 #d97706,
+    14px 6px 0 #f59e0b,
+    15px 6px 0 #f59e0b,
+
+    /* ── Body row 7: upper torso with badge ── */
+    9px 7px 0 #d97706,
+    10px 7px 0 #d97706,
+    11px 7px 0 #f59e0b,
+    12px 7px 0 #fbbf24,
+    13px 7px 0 #f59e0b,
+    14px 7px 0 #d97706,
+    15px 7px 0 #d97706,
+
+    /* ── Body row 8: torso ── */
+    10px 8px 0 #d97706,
+    11px 8px 0 #f59e0b,
+    12px 8px 0 #f59e0b,
+    13px 8px 0 #f59e0b,
+    14px 8px 0 #d97706,
+
+    /* ── Body row 9: lower torso ── */
+    10px 9px 0 #d97706,
+    11px 9px 0 #d97706,
+    12px 9px 0 #d97706,
+    13px 9px 0 #d97706,
+    14px 9px 0 #d97706,
+
+    /* ── Belt ── */
+    10px 10px 0 #92400e,
+    11px 10px 0 #78350f,
+    12px 10px 0 #92400e,
+    13px 10px 0 #78350f,
+    14px 10px 0 #92400e,
+
+    /* ── Legs ── */
+    10px 11px 0 #b45309,
+    11px 11px 0 #92400e,
+    13px 11px 0 #92400e,
+    14px 11px 0 #b45309,
+
+    10px 12px 0 #b45309,
+    11px 12px 0 #92400e,
+    13px 12px 0 #92400e,
+    14px 12px 0 #b45309,
+
+    /* ── Feet ── */
+    9px 13px 0 #78350f,
+    10px 13px 0 #78350f,
+    11px 13px 0 #78350f,
+    13px 13px 0 #78350f,
+    14px 13px 0 #78350f,
+    15px 13px 0 #78350f;
+}
+
+
+/* ============================================================
+   2. BUILDER  —  Red / Coral  (#ef4444)
+   🦞 Developer coding away, with a hard hat
+   ============================================================ */
+
+.sprite-builder {
+  box-shadow:
+    /* ── Hard hat brim ── */
+    9px 0 0 #fbbf24,
+    10px 0 0 #f59e0b,
+    11px 0 0 #f59e0b,
+    12px 0 0 #f59e0b,
+    13px 0 0 #f59e0b,
+    14px 0 0 #f59e0b,
+    15px 0 0 #fbbf24,
+
+    /* ── Hard hat dome ── */
+    10px 1px 0 #fbbf24,
+    11px 1px 0 #fbbf24,
+    12px 1px 0 #fde68a,
+    13px 1px 0 #fbbf24,
+    14px 1px 0 #fbbf24,
+
+    /* ── Face row 2 ── */
+    10px 2px 0 #fde68a,
+    11px 2px 0 #fde68a,
+    12px 2px 0 #fde68a,
+    13px 2px 0 #fde68a,
+    14px 2px 0 #fde68a,
+
+    /* ── Face row 3: eyes ── */
+    10px 3px 0 #fde68a,
+    11px 3px 0 #1a1a2e,
+    12px 3px 0 #fde68a,
+    13px 3px 0 #1a1a2e,
+    14px 3px 0 #fde68a,
+
+    /* ── Face row 4: mouth, slight grin ── */
+    10px 4px 0 #fde68a,
+    11px 4px 0 #fde68a,
+    12px 4px 0 #dc2626,
+    13px 4px 0 #fde68a,
+    14px 4px 0 #fde68a,
+
+    /* ── Neck ── */
+    12px 5px 0 #fde68a,
+
+    /* ── Shoulders ── */
+    9px 6px 0 #ef4444,
+    10px 6px 0 #ef4444,
+    11px 6px 0 #dc2626,
+    12px 6px 0 #dc2626,
+    13px 6px 0 #dc2626,
+    14px 6px 0 #ef4444,
+    15px 6px 0 #ef4444,
+
+    /* ── Arms reaching to keyboard ── */
+    8px 7px 0 #ef4444,
+    9px 7px 0 #fde68a,
+    10px 7px 0 #dc2626,
+    11px 7px 0 #ef4444,
+    12px 7px 0 #f87171,
+    13px 7px 0 #ef4444,
+    14px 7px 0 #dc2626,
+    15px 7px 0 #fde68a,
+    16px 7px 0 #ef4444,
+
+    /* ── Torso ── */
+    10px 8px 0 #dc2626,
+    11px 8px 0 #ef4444,
+    12px 8px 0 #ef4444,
+    13px 8px 0 #ef4444,
+    14px 8px 0 #dc2626,
+
+    /* ── Lower torso ── */
+    10px 9px 0 #dc2626,
+    11px 9px 0 #dc2626,
+    12px 9px 0 #dc2626,
+    13px 9px 0 #dc2626,
+    14px 9px 0 #dc2626,
+
+    /* ── Belt ── */
+    10px 10px 0 #7f1d1d,
+    11px 10px 0 #991b1b,
+    12px 10px 0 #7f1d1d,
+    13px 10px 0 #991b1b,
+    14px 10px 0 #7f1d1d,
+
+    /* ── Legs ── */
+    10px 11px 0 #b91c1c,
+    11px 11px 0 #991b1b,
+    13px 11px 0 #991b1b,
+    14px 11px 0 #b91c1c,
+
+    10px 12px 0 #b91c1c,
+    11px 12px 0 #991b1b,
+    13px 12px 0 #991b1b,
+    14px 12px 0 #b91c1c,
+
+    /* ── Feet ── */
+    9px 13px 0 #7f1d1d,
+    10px 13px 0 #7f1d1d,
+    11px 13px 0 #7f1d1d,
+    13px 13px 0 #7f1d1d,
+    14px 13px 0 #7f1d1d,
+    15px 13px 0 #7f1d1d;
+}
+
+
+/* ============================================================
+   3. ARCHITECT  —  Steel Blue  (#3b82f6)
+   🏗️ Thoughtful figure with glasses
+   ============================================================ */
+
+.sprite-architect {
+  box-shadow:
+    /* ── Hair top ── */
+    10px 0 0 #1e3a5f,
+    11px 0 0 #1e3a5f,
+    12px 0 0 #1e3a5f,
+    13px 0 0 #1e3a5f,
+    14px 0 0 #1e3a5f,
+
+    /* ── Head row 1: hair sides ── */
+    10px 1px 0 #1e3a5f,
+    11px 1px 0 #fde68a,
+    12px 1px 0 #fde68a,
+    13px 1px 0 #fde68a,
+    14px 1px 0 #1e3a5f,
+
+    /* ── Face row 2 ── */
+    10px 2px 0 #fde68a,
+    11px 2px 0 #fde68a,
+    12px 2px 0 #fde68a,
+    13px 2px 0 #fde68a,
+    14px 2px 0 #fde68a,
+
+    /* ── Face row 3: glasses + eyes ── */
+    9px 3px 0 #60a5fa,
+    10px 3px 0 #93c5fd,
+    11px 3px 0 #1a1a2e,
+    12px 3px 0 #60a5fa,
+    13px 3px 0 #1a1a2e,
+    14px 3px 0 #93c5fd,
+    15px 3px 0 #60a5fa,
+
+    /* ── Face row 4: mouth — thoughtful ── */
+    10px 4px 0 #fde68a,
+    11px 4px 0 #fde68a,
+    12px 4px 0 #fde68a,
+    13px 4px 0 #b45309,
+    14px 4px 0 #fde68a,
+
+    /* ── Neck ── */
+    12px 5px 0 #fde68a,
+
+    /* ── Shoulders ── */
+    9px 6px 0 #3b82f6,
+    10px 6px 0 #3b82f6,
+    11px 6px 0 #2563eb,
+    12px 6px 0 #2563eb,
+    13px 6px 0 #2563eb,
+    14px 6px 0 #3b82f6,
+    15px 6px 0 #3b82f6,
+
+    /* ── Body row 7: hand to chin (thinking) ── */
+    9px 7px 0 #2563eb,
+    10px 7px 0 #2563eb,
+    11px 7px 0 #3b82f6,
+    12px 7px 0 #60a5fa,
+    13px 7px 0 #3b82f6,
+    14px 7px 0 #2563eb,
+    15px 7px 0 #2563eb,
+
+    /* ── Torso ── */
+    10px 8px 0 #2563eb,
+    11px 8px 0 #3b82f6,
+    12px 8px 0 #3b82f6,
+    13px 8px 0 #3b82f6,
+    14px 8px 0 #2563eb,
+
+    /* ── Lower torso ── */
+    10px 9px 0 #2563eb,
+    11px 9px 0 #2563eb,
+    12px 9px 0 #2563eb,
+    13px 9px 0 #2563eb,
+    14px 9px 0 #2563eb,
+
+    /* ── Belt ── */
+    10px 10px 0 #1e3a5f,
+    11px 10px 0 #1d4ed8,
+    12px 10px 0 #1e3a5f,
+    13px 10px 0 #1d4ed8,
+    14px 10px 0 #1e3a5f,
+
+    /* ── Legs ── */
+    10px 11px 0 #1d4ed8,
+    11px 11px 0 #1e40af,
+    13px 11px 0 #1e40af,
+    14px 11px 0 #1d4ed8,
+
+    10px 12px 0 #1d4ed8,
+    11px 12px 0 #1e40af,
+    13px 12px 0 #1e40af,
+    14px 12px 0 #1d4ed8,
+
+    /* ── Feet ── */
+    9px 13px 0 #1e3a5f,
+    10px 13px 0 #1e3a5f,
+    11px 13px 0 #1e3a5f,
+    13px 13px 0 #1e3a5f,
+    14px 13px 0 #1e3a5f,
+    15px 13px 0 #1e3a5f;
+}
+
+
+/* ============================================================
+   4. SOCIAL  —  Green / Teal  (#10b981)
+   📣 Communicator with antenna / signal waves
+   ============================================================ */
+
+.sprite-social {
+  box-shadow:
+    /* ── Antenna ── */
+    12px 0 0 #34d399,
+    11px 0 0 #6ee7b7,
+    13px 0 0 #6ee7b7,
+
+    /* ── Head row 1 ── */
+    10px 1px 0 #10b981,
+    11px 1px 0 #34d399,
+    12px 1px 0 #34d399,
+    13px 1px 0 #34d399,
+    14px 1px 0 #10b981,
+
+    /* ── Face row 2 ── */
+    10px 2px 0 #fde68a,
+    11px 2px 0 #fde68a,
+    12px 2px 0 #fde68a,
+    13px 2px 0 #fde68a,
+    14px 2px 0 #fde68a,
+
+    /* ── Face row 3: eyes (winking) ── */
+    10px 3px 0 #fde68a,
+    11px 3px 0 #1a1a2e,
+    12px 3px 0 #fde68a,
+    13px 3px 0 #1a1a2e,
+    14px 3px 0 #fde68a,
+
+    /* ── Face row 4: smile ── */
+    10px 4px 0 #fde68a,
+    11px 4px 0 #059669,
+    12px 4px 0 #059669,
+    13px 4px 0 #059669,
+    14px 4px 0 #fde68a,
+
+    /* ── Neck ── */
+    12px 5px 0 #fde68a,
+
+    /* ── Shoulders ── */
+    9px 6px 0 #10b981,
+    10px 6px 0 #10b981,
+    11px 6px 0 #059669,
+    12px 6px 0 #059669,
+    13px 6px 0 #059669,
+    14px 6px 0 #10b981,
+    15px 6px 0 #10b981,
+
+    /* ── Body row 7: arms out (gesturing) ── */
+    7px 7px 0 #10b981,
+    8px 7px 0 #fde68a,
+    9px 7px 0 #059669,
+    10px 7px 0 #059669,
+    11px 7px 0 #10b981,
+    12px 7px 0 #34d399,
+    13px 7px 0 #10b981,
+    14px 7px 0 #059669,
+    15px 7px 0 #059669,
+    16px 7px 0 #fde68a,
+    17px 7px 0 #10b981,
+
+    /* ── Signal waves from right hand ── */
+    18px 6px 0 #6ee7b744,
+    19px 5px 0 #6ee7b733,
+    18px 8px 0 #6ee7b744,
+    19px 9px 0 #6ee7b733,
+
+    /* ── Torso ── */
+    10px 8px 0 #059669,
+    11px 8px 0 #10b981,
+    12px 8px 0 #10b981,
+    13px 8px 0 #10b981,
+    14px 8px 0 #059669,
+
+    /* ── Lower torso ── */
+    10px 9px 0 #059669,
+    11px 9px 0 #059669,
+    12px 9px 0 #059669,
+    13px 9px 0 #059669,
+    14px 9px 0 #059669,
+
+    /* ── Belt ── */
+    10px 10px 0 #064e3b,
+    11px 10px 0 #065f46,
+    12px 10px 0 #064e3b,
+    13px 10px 0 #065f46,
+    14px 10px 0 #064e3b,
+
+    /* ── Legs ── */
+    10px 11px 0 #047857,
+    11px 11px 0 #065f46,
+    13px 11px 0 #065f46,
+    14px 11px 0 #047857,
+
+    10px 12px 0 #047857,
+    11px 12px 0 #065f46,
+    13px 12px 0 #065f46,
+    14px 12px 0 #047857,
+
+    /* ── Feet ── */
+    9px 13px 0 #064e3b,
+    10px 13px 0 #064e3b,
+    11px 13px 0 #064e3b,
+    13px 13px 0 #064e3b,
+    14px 13px 0 #064e3b,
+    15px 13px 0 #064e3b;
+}
+
+
+/* ============================================================
+   DESK + MONITOR  — Shared across all agents
+   ============================================================
+   Positioned below the character. The monitor sits behind the
+   character (lower z-index), desk in front.
+
+   Monitor: 10px wide, 8px tall, centered
+   Desk surface: 20px wide, 2px tall
+   Desk legs: 2px at each end, 3px tall
+   ============================================================ */
+
+.desk-sprite {
+  box-shadow:
+    /* ── Monitor frame (behind character) ── */
+    /* Top edge */
+    8px 0 0 #374151,
+    9px 0 0 #374151,
+    10px 0 0 #374151,
+    11px 0 0 #374151,
+    12px 0 0 #374151,
+    13px 0 0 #374151,
+    14px 0 0 #374151,
+    15px 0 0 #374151,
+    16px 0 0 #374151,
+
+    /* Left edge */
+    8px 1px 0 #374151,
+    8px 2px 0 #374151,
+    8px 3px 0 #374151,
+    8px 4px 0 #374151,
+    8px 5px 0 #374151,
+
+    /* Right edge */
+    16px 1px 0 #374151,
+    16px 2px 0 #374151,
+    16px 3px 0 #374151,
+    16px 4px 0 #374151,
+    16px 5px 0 #374151,
+
+    /* Bottom edge */
+    8px 6px 0 #374151,
+    9px 6px 0 #374151,
+    10px 6px 0 #374151,
+    11px 6px 0 #374151,
+    12px 6px 0 #374151,
+    13px 6px 0 #374151,
+    14px 6px 0 #374151,
+    15px 6px 0 #374151,
+    16px 6px 0 #374151,
+
+    /* Monitor stand */
+    12px 7px 0 #4b5563,
+    11px 8px 0 #4b5563,
+    12px 8px 0 #4b5563,
+    13px 8px 0 #4b5563,
+
+    /* ── Desk surface ── */
+    4px 9px 0 #6b7280,
+    5px 9px 0 #6b7280,
+    6px 9px 0 #6b7280,
+    7px 9px 0 #6b7280,
+    8px 9px 0 #6b7280,
+    9px 9px 0 #6b7280,
+    10px 9px 0 #9ca3af,
+    11px 9px 0 #9ca3af,
+    12px 9px 0 #9ca3af,
+    13px 9px 0 #9ca3af,
+    14px 9px 0 #9ca3af,
+    15px 9px 0 #6b7280,
+    16px 9px 0 #6b7280,
+    17px 9px 0 #6b7280,
+    18px 9px 0 #6b7280,
+    19px 9px 0 #6b7280,
+    20px 9px 0 #6b7280,
+
+    /* Desk front edge */
+    4px 10px 0 #4b5563,
+    5px 10px 0 #4b5563,
+    6px 10px 0 #4b5563,
+    7px 10px 0 #4b5563,
+    8px 10px 0 #4b5563,
+    9px 10px 0 #4b5563,
+    10px 10px 0 #6b7280,
+    11px 10px 0 #6b7280,
+    12px 10px 0 #6b7280,
+    13px 10px 0 #6b7280,
+    14px 10px 0 #6b7280,
+    15px 10px 0 #4b5563,
+    16px 10px 0 #4b5563,
+    17px 10px 0 #4b5563,
+    18px 10px 0 #4b5563,
+    19px 10px 0 #4b5563,
+    20px 10px 0 #4b5563,
+
+    /* Desk legs */
+    5px 11px 0 #4b5563,
+    6px 11px 0 #4b5563,
+    18px 11px 0 #4b5563,
+    19px 11px 0 #4b5563,
+
+    5px 12px 0 #4b5563,
+    6px 12px 0 #4b5563,
+    18px 12px 0 #4b5563,
+    19px 12px 0 #4b5563,
+
+    5px 13px 0 #4b5563,
+    6px 13px 0 #4b5563,
+    18px 13px 0 #4b5563,
+    19px 13px 0 #4b5563;
+}
+
+
+/* ── Monitor screen inner area (the glowing part) ── */
+
+.monitor-screen {
+  /* Positioned inside the monitor frame */
+  /* Container is 96px wide; monitor at ~9*3=27px from left, 1*3=3px from desk-sprite top */
+  left: 27px;
+  width: 24px; /* 8 * 3 */
+  height: 15px; /* 5 * 3 */
+  background: #1a1a2e;
+}
+
+/* Per-agent monitor screen position (desk-sprite offset may vary) */
+/* Default: monitor screen is placed relative to .agent-sprite-container */
+.agent-sprite-container .monitor-screen {
+  bottom: 33px; /* sits inside the monitor frame area */
+}
+
+
+/* ── Monitor screen content pixels (different per agent) ── */
+
+.monitor-content {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  transform: scale(2);
+  transform-origin: top left;
+  z-index: 0;
+}
+
+/* Orchestrator: dashboard/grid on screen */
+.sprite-orchestrator ~ .monitor-content,
+.agent-sprite-container[data-agent="orchestrator"] .monitor-content {
+  box-shadow:
+    2px 1px 0 #f59e0b66,
+    3px 1px 0 #f59e0b44,
+    5px 1px 0 #f59e0b66,
+    6px 1px 0 #f59e0b44,
+    2px 3px 0 #fbbf2444,
+    3px 3px 0 #fbbf2466,
+    5px 3px 0 #fbbf2444,
+    6px 3px 0 #fbbf2466,
+    2px 5px 0 #f59e0b44,
+    4px 5px 0 #f59e0b66,
+    6px 5px 0 #f59e0b44;
+}
+
+/* Builder: code lines on screen */
+.sprite-builder ~ .monitor-content,
+.agent-sprite-container[data-agent="builder"] .monitor-content {
+  box-shadow:
+    1px 1px 0 #ef444466,
+    2px 1px 0 #ef444466,
+    3px 1px 0 #ef444466,
+    5px 1px 0 #34d39966,
+    6px 1px 0 #34d39966,
+    2px 2px 0 #60a5fa44,
+    3px 2px 0 #60a5fa44,
+    4px 2px 0 #60a5fa44,
+    1px 3px 0 #fbbf2444,
+    2px 3px 0 #fbbf2444,
+    4px 3px 0 #ef444444,
+    5px 3px 0 #ef444444,
+    6px 3px 0 #ef444444,
+    2px 4px 0 #34d39944,
+    3px 4px 0 #34d39944,
+    1px 5px 0 #60a5fa44,
+    2px 5px 0 #60a5fa44,
+    3px 5px 0 #60a5fa44,
+    4px 5px 0 #60a5fa44;
+}
+
+/* Architect: blueprint grid on screen */
+.sprite-architect ~ .monitor-content,
+.agent-sprite-container[data-agent="architect"] .monitor-content {
+  box-shadow:
+    1px 1px 0 #3b82f644,
+    3px 1px 0 #3b82f644,
+    5px 1px 0 #3b82f644,
+    7px 1px 0 #3b82f644,
+    1px 3px 0 #3b82f644,
+    2px 3px 0 #60a5fa66,
+    3px 3px 0 #60a5fa66,
+    4px 3px 0 #3b82f644,
+    5px 3px 0 #3b82f644,
+    7px 3px 0 #3b82f644,
+    1px 5px 0 #3b82f644,
+    3px 5px 0 #3b82f644,
+    5px 5px 0 #60a5fa66,
+    6px 5px 0 #60a5fa66,
+    7px 5px 0 #3b82f644;
+}
+
+/* Social: chat bubbles / feed on screen */
+.sprite-social ~ .monitor-content,
+.agent-sprite-container[data-agent="social"] .monitor-content {
+  box-shadow:
+    1px 1px 0 #10b98166,
+    2px 1px 0 #10b98166,
+    3px 1px 0 #10b98166,
+    5px 2px 0 #34d39966,
+    6px 2px 0 #34d39966,
+    7px 2px 0 #34d39966,
+    1px 3px 0 #6ee7b744,
+    2px 3px 0 #6ee7b744,
+    5px 4px 0 #10b98144,
+    6px 4px 0 #10b98144,
+    7px 4px 0 #10b98144,
+    1px 5px 0 #34d39944,
+    2px 5px 0 #34d39944,
+    3px 5px 0 #34d39944;
+}
+
+
+/* ============================================================
+   LAYOUT POSITIONING
+   ============================================================
+   The character sprite sits on top of the desk. The desk sprite
+   and monitor are positioned below/behind.
+   ============================================================ */
+
+.agent-sprite-container .agent-sprite {
+  /* Character positioned to sit "at" the desk */
+  top: 6px;
+  left: 12px;
+}
+
+.agent-sprite-container .desk-sprite {
+  /* Desk positioned below the character */
+  bottom: 0;
+  left: 6px;
+}
+
+.agent-sprite-container .monitor-screen {
+  bottom: 30px;
+  left: 30px;
+}
+
+.agent-sprite-container .monitor-content {
+  bottom: 33px;
+  left: 33px;
+}
+
+
+/* ============================================================
+   ANIMATION KEYFRAMES
+   ============================================================ */
+
+@keyframes idle-bob {
+  0%, 100% { transform: scale(3) translateY(0); }
+  50%      { transform: scale(3) translateY(-2px); }
+}
+
+/* NEW: Idle breathing — visible scale pulse (from pixel-agents) */
+@keyframes idle-breathe {
+  0%, 100% { transform: scale(3) translateY(0); }
+  25%      { transform: scale(3) translateY(-1.5px); }
+  50%      { transform: scale(3.06) translateY(-3px); }
+  75%      { transform: scale(3) translateY(-1.5px); }
+}
+
+/* NEW: Idle monitor ambient glow pulse per agent */
+@keyframes idle-monitor-glow {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.85; }
+}
+
+/* NEW: Idle cursor blink (terminal prompt) */
+@keyframes idle-cursor-blink {
+  0%, 48% { opacity: 1; }
+  50%, 98% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* NEW: Ambient floating particle (visible dot orbit) */
+@keyframes ambient-particle-1 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  15%  { opacity: 0.9; }
+  50%  { transform: translate(20px, -28px); opacity: 1; }
+  85%  { opacity: 0.4; }
+  100% { transform: translate(35px, -10px); opacity: 0; }
+}
+
+@keyframes ambient-particle-2 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  20%  { opacity: 0.8; }
+  50%  { transform: translate(-22px, -20px); opacity: 1; }
+  80%  { opacity: 0.3; }
+  100% { transform: translate(-12px, 8px); opacity: 0; }
+}
+
+@keyframes ambient-particle-3 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  25%  { opacity: 0.7; }
+  60%  { transform: translate(12px, 18px); opacity: 0.9; }
+  100% { transform: translate(-8px, -14px); opacity: 0; }
+}
+
+@keyframes thinking-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(3) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(3.05) translateY(-1px);
+  }
+}
+
+@keyframes typing {
+  0%   { transform: scale(3) translateY(0); }
+  25%  { transform: scale(3) translateY(-1px); }
+  50%  { transform: scale(3) translateY(0); }
+  75%  { transform: scale(3) translateY(1px); }
+  100% { transform: scale(3) translateY(0); }
+}
+
+/* NEW: Reading animation — slower, analytical head tilt */
+@keyframes reading {
+  0%, 100% { transform: scale(3) translateX(0) translateY(0); }
+  30%      { transform: scale(3) translateX(1px) translateY(-1px); }
+  70%      { transform: scale(3) translateX(-1px) translateY(-1px); }
+}
+
+/* NEW: Writing/editing — rapid fingers, faster than typing */
+@keyframes writing {
+  0%   { transform: scale(3) translateY(0); }
+  12%  { transform: scale(3) translateY(-1px) translateX(-1px); }
+  25%  { transform: scale(3) translateY(0); }
+  37%  { transform: scale(3) translateY(-1px) translateX(1px); }
+  50%  { transform: scale(3) translateY(0); }
+  62%  { transform: scale(3) translateY(-1px); }
+  75%  { transform: scale(3) translateY(0); }
+  87%  { transform: scale(3) translateY(-1px) translateX(-1px); }
+  100% { transform: scale(3) translateY(0); }
+}
+
+/* NEW: Dispatching — signal wave pulse (sending @agent) */
+@keyframes dispatching {
+  0%, 100% { transform: scale(3) translateY(0); }
+  25%      { transform: scale(3.04) translateY(-2px); }
+  50%      { transform: scale(3) translateY(0); }
+  75%      { transform: scale(3.02) translateY(-1px); }
+}
+
+@keyframes speaking-bounce {
+  0%, 100% { transform: scale(3) translateY(0); }
+  40%      { transform: scale(3) translateY(-3px); }
+  60%      { transform: scale(3) translateY(-1px); }
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: scale(3) translateX(0); }
+  20%      { transform: scale(3) translateX(-2px); }
+  40%      { transform: scale(3) translateX(2px); }
+  60%      { transform: scale(3) translateX(-2px); }
+  80%      { transform: scale(3) translateX(1px); }
+}
+
+/* NEW: Matrix rain — spawn/despawn effect (inspired by pixel-agents) */
+@keyframes matrix-rain-col {
+  0%   { background-position: 0 -100%; }
+  100% { background-position: 0 200%; }
+}
+
+@keyframes matrix-spawn {
+  0%   { clip-path: inset(100% 0 0 0); filter: brightness(2) hue-rotate(80deg); }
+  40%  { clip-path: inset(30% 0 0 0); filter: brightness(1.5) hue-rotate(40deg); }
+  70%  { clip-path: inset(0 0 0 0); filter: brightness(1.2) hue-rotate(20deg); }
+  100% { clip-path: inset(0 0 0 0); filter: brightness(1) hue-rotate(0deg); }
+}
+
+@keyframes matrix-despawn {
+  0%   { clip-path: inset(0 0 0 0); filter: brightness(1) hue-rotate(0deg); opacity: 1; }
+  30%  { clip-path: inset(0 0 0 0); filter: brightness(1.5) hue-rotate(40deg); opacity: 0.8; }
+  70%  { clip-path: inset(0 0 70% 0); filter: brightness(2) hue-rotate(80deg); opacity: 0.5; }
+  100% { clip-path: inset(0 0 100% 0); filter: brightness(3) hue-rotate(120deg); opacity: 0; }
+}
+
+@keyframes matrix-rain-overlay {
+  0%   { background-position: 0 -20px; opacity: 0.8; }
+  100% { background-position: 0 140px; opacity: 0; }
+}
+
+/* NEW: Dispatch signal wave ripple */
+@keyframes dispatch-ripple {
+  0%   { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* NEW: Speech bubble appear */
+@keyframes bubble-appear {
+  0%   { transform: translateX(-50%) scale(0) translateY(4px); opacity: 0; }
+  60%  { transform: translateX(-50%) scale(1.1) translateY(-1px); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-2px); }
+}
+
+/* NEW: Shadow breathing (matches idle breathe) — more visible */
+@keyframes shadow-breathe {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.35; }
+  50%      { transform: translateX(-50%) scaleX(0.85); opacity: 0.15; }
+}
+
+/* ── Desk idle sway (very subtle) ── */
+@keyframes desk-idle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.95; }
+}
+
+/* ── Monitor glow pulse ── */
+@keyframes monitor-glow {
+  0%, 100% { opacity: 0.8; }
+  50%      { opacity: 1; }
+}
+
+@keyframes starting-glow-pulse {
+  0%   { opacity: 0; transform: scale(0.97); }
+  60%  { opacity: 1; transform: scale(1.01); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes starting-border-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.08); }
+}
+
+@keyframes stopping-fade-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 0.25; }
+}
+
+@keyframes monitor-flicker {
+  0%, 100% { opacity: 1; }
+  92%      { opacity: 1; }
+  93%      { opacity: 0.6; }
+  94%      { opacity: 1; }
+  97%      { opacity: 0.8; }
+  98%      { opacity: 1; }
+}
+
+
+/* ============================================================
+   STATE ANIMATIONS — Applied via state classes on container
+   ============================================================ */
+
+/* ── Idle: breathing bob + ambient glow (enhanced from pixel-agents) ── */
+.state-idle .agent-sprite {
+  animation: idle-breathe 4s ease-in-out infinite;
+}
+
+.state-idle .desk-sprite {
+  animation: desk-idle 4s ease-in-out infinite;
+}
+
+.state-idle .monitor-screen {
+  animation: idle-monitor-glow 3s ease-in-out infinite, monitor-flicker 8s ease-in-out infinite;
+}
+
+/* Per-agent idle monitor color — visible ambient glow (boosted intensity) */
+.agent-sprite-container[data-agent="orchestrator"].state-idle .monitor-screen {
+  background: #f59e0b25;
+  box-shadow: 0 0 8px #f59e0b44, 0 0 20px #f59e0b22, inset 0 0 4px #f59e0b18;
+}
+.agent-sprite-container[data-agent="builder"].state-idle .monitor-screen {
+  background: #ef444425;
+  box-shadow: 0 0 8px #ef444444, 0 0 20px #ef444422, inset 0 0 4px #ef444418;
+}
+.agent-sprite-container[data-agent="architect"].state-idle .monitor-screen {
+  background: #3b82f625;
+  box-shadow: 0 0 8px #3b82f644, 0 0 20px #3b82f622, inset 0 0 4px #3b82f618;
+}
+.agent-sprite-container[data-agent="social"].state-idle .monitor-screen {
+  background: #10b98125;
+  box-shadow: 0 0 8px #10b98144, 0 0 20px #10b98122, inset 0 0 4px #10b98118;
+}
+
+/* Idle monitor content: blinking cursor (terminal prompt waiting) */
+.state-idle .monitor-content {
+  opacity: 1;
+  animation: idle-cursor-blink 1.2s step-end infinite;
+}
+
+/* Per-agent cursor color on idle */
+.agent-sprite-container[data-agent="orchestrator"].state-idle .monitor-content {
+  box-shadow:
+    1px 3px 0 #f59e0b88,
+    2px 3px 0 #f59e0b55 !important;
+}
+.agent-sprite-container[data-agent="builder"].state-idle .monitor-content {
+  box-shadow:
+    1px 3px 0 #ef444488,
+    2px 3px 0 #ef444455 !important;
+}
+.agent-sprite-container[data-agent="architect"].state-idle .monitor-content {
+  box-shadow:
+    1px 3px 0 #3b82f688,
+    2px 3px 0 #3b82f655 !important;
+}
+.agent-sprite-container[data-agent="social"].state-idle .monitor-content {
+  box-shadow:
+    1px 3px 0 #10b98188,
+    2px 3px 0 #10b98155 !important;
+}
+
+/* Per-agent colored shadow on idle — boosted for visibility */
+.state-idle .agent-shadow {
+  animation: shadow-breathe 4s ease-in-out infinite;
+  width: 70px;
+  height: 8px;
+}
+.agent-sprite-container[data-agent="orchestrator"].state-idle .agent-shadow {
+  background: radial-gradient(ellipse, rgba(245, 158, 11, 0.35) 0%, rgba(245, 158, 11, 0.08) 50%, transparent 75%);
+}
+.agent-sprite-container[data-agent="builder"].state-idle .agent-shadow {
+  background: radial-gradient(ellipse, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.08) 50%, transparent 75%);
+}
+.agent-sprite-container[data-agent="architect"].state-idle .agent-shadow {
+  background: radial-gradient(ellipse, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 75%);
+}
+.agent-sprite-container[data-agent="social"].state-idle .agent-shadow {
+  background: radial-gradient(ellipse, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 75%);
+}
+
+/* Ambient floating particles around idle agents (pseudo-elements) */
+.agent-sprite-container.state-idle::before {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  top: 25%;
+  left: 5%;
+  z-index: 25;
+  pointer-events: none;
+  animation: ambient-particle-1 4s ease-in-out infinite;
+}
+.agent-sprite-container.state-idle::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  top: 55%;
+  right: 10%;
+  z-index: 25;
+  pointer-events: none;
+  animation: ambient-particle-2 5.5s ease-in-out 1s infinite;
+}
+
+/* Per-agent particle colors — boosted glow */
+.agent-sprite-container[data-agent="orchestrator"].state-idle::before,
+.agent-sprite-container[data-agent="orchestrator"].state-idle::after {
+  background: #f59e0b;
+  box-shadow: 0 0 6px 2px #f59e0baa, 0 0 12px 4px #f59e0b44;
+}
+.agent-sprite-container[data-agent="builder"].state-idle::before,
+.agent-sprite-container[data-agent="builder"].state-idle::after {
+  background: #ef4444;
+  box-shadow: 0 0 6px 2px #ef4444aa, 0 0 12px 4px #ef444444;
+}
+.agent-sprite-container[data-agent="architect"].state-idle::before,
+.agent-sprite-container[data-agent="architect"].state-idle::after {
+  background: #3b82f6;
+  box-shadow: 0 0 6px 2px #3b82f6aa, 0 0 12px 4px #3b82f644;
+}
+.agent-sprite-container[data-agent="social"].state-idle::before,
+.agent-sprite-container[data-agent="social"].state-idle::after {
+  background: #10b981;
+  box-shadow: 0 0 6px 2px #10b981aa, 0 0 12px 4px #10b98144;
+}
+
+/* ── Thinking: pulsing glow, head bobbing ── */
+.state-thinking .agent-sprite {
+  animation: thinking-pulse 1.5s ease-in-out infinite;
+}
+
+.state-thinking .monitor-screen {
+  background: #f59e0b18;
+  box-shadow:
+    0 0 8px #f59e0b22,
+    0 0 16px #f59e0b11;
+  animation: monitor-glow 1.5s ease-in-out infinite;
+}
+
+.state-thinking .monitor-content {
+  opacity: 0.8;
+  animation: monitor-glow 1.5s ease-in-out infinite;
+}
+
+/* ── Tool Running: rapid typing movements ── */
+.state-tool_running .agent-sprite {
+  animation: typing 0.3s steps(4) infinite;
+}
+
+.state-tool_running .monitor-screen {
+  background: #10b98118;
+  box-shadow:
+    0 0 8px #10b98122,
+    0 0 16px #10b98111;
+}
+
+.state-tool_running .monitor-content {
+  opacity: 1;
+  animation: monitor-glow 0.5s ease-in-out infinite;
+}
+
+/* ── Speaking: subtle bounce ── */
+.state-speaking .agent-sprite {
+  animation: speaking-bounce 0.8s ease infinite;
+}
+
+.state-speaking .monitor-screen {
+  background: #3b82f618;
+  box-shadow:
+    0 0 8px #3b82f622,
+    0 0 16px #3b82f611;
+}
+
+.state-speaking .monitor-content {
+  opacity: 0.9;
+}
+
+/* ── Error: shake animation ── */
+.state-error .agent-sprite {
+  animation: error-shake 0.4s ease infinite;
+}
+
+.state-error .monitor-screen {
+  background: #ef444422;
+  box-shadow:
+    0 0 8px #ef444433,
+    0 0 20px #ef444422;
+  animation: monitor-glow 0.6s ease-in-out infinite;
+}
+
+.state-error .monitor-content {
+  opacity: 1;
+  box-shadow:
+    2px 2px 0 #ef444488,
+    3px 2px 0 #ef444488,
+    4px 2px 0 #ef444488,
+    5px 2px 0 #ef444488,
+    6px 2px 0 #ef444488,
+    2px 4px 0 #ef444466,
+    3px 4px 0 #ef444466,
+    4px 4px 0 #ef444466 !important;
+}
+
+/* ── Reading: slow analytical scan (from pixel-agents READING_TOOLS) ── */
+.state-reading .agent-sprite {
+  animation: reading 2.5s ease-in-out infinite;
+}
+
+.state-reading .monitor-screen {
+  background: #06b6d418;
+  box-shadow:
+    0 0 8px #06b6d422,
+    0 0 16px #06b6d411;
+}
+
+.state-reading .monitor-content {
+  opacity: 1;
+  box-shadow:
+    1px 1px 0 #06b6d466,
+    2px 1px 0 #06b6d466,
+    3px 1px 0 #06b6d466,
+    4px 1px 0 #06b6d444,
+    1px 2px 0 #06b6d444,
+    2px 2px 0 #06b6d466,
+    5px 2px 0 #06b6d444,
+    6px 2px 0 #06b6d444,
+    1px 3px 0 #06b6d444,
+    3px 3px 0 #06b6d466,
+    4px 3px 0 #06b6d466,
+    5px 3px 0 #06b6d466,
+    2px 4px 0 #06b6d444,
+    3px 4px 0 #06b6d444,
+    4px 4px 0 #06b6d444,
+    6px 4px 0 #06b6d444 !important;
+  animation: monitor-glow 2s ease-in-out infinite;
+}
+
+/* ── Writing: rapid editing motion ── */
+.state-writing .agent-sprite {
+  animation: writing 0.25s steps(8) infinite;
+}
+
+.state-writing .monitor-screen {
+  background: #a78bfa18;
+  box-shadow:
+    0 0 8px #a78bfa22,
+    0 0 16px #a78bfa11;
+}
+
+.state-writing .monitor-content {
+  opacity: 1;
+  box-shadow:
+    1px 1px 0 #a78bfa66,
+    2px 1px 0 #a78bfa66,
+    3px 1px 0 #a78bfa55,
+    5px 1px 0 #34d39955,
+    1px 2px 0 #ef444455,
+    2px 2px 0 #ef444455,
+    4px 2px 0 #a78bfa55,
+    5px 2px 0 #a78bfa55,
+    6px 2px 0 #a78bfa55,
+    2px 3px 0 #fbbf2455,
+    3px 3px 0 #fbbf2455,
+    5px 3px 0 #a78bfa44,
+    1px 4px 0 #34d39944,
+    2px 4px 0 #34d39944,
+    3px 4px 0 #34d39944,
+    4px 4px 0 #34d39944,
+    1px 5px 0 #a78bfa44,
+    2px 5px 0 #a78bfa44,
+    4px 5px 0 #fbbf2444,
+    5px 5px 0 #fbbf2444 !important;
+  animation: code-scroll 0.4s steps(4) infinite;
+}
+
+/* ── Dispatching: signal wave (sending @agent commands) ── */
+.state-dispatching .agent-sprite {
+  animation: dispatching 0.6s ease-in-out infinite;
+}
+
+.state-dispatching .monitor-screen {
+  background: #f59e0b22;
+  box-shadow:
+    0 0 12px #f59e0b33,
+    0 0 24px #f59e0b18;
+}
+
+.state-dispatching .monitor-content {
+  opacity: 1;
+  box-shadow:
+    3px 2px 0 #f59e0b88,
+    4px 2px 0 #f59e0b88,
+    5px 2px 0 #f59e0b88,
+    2px 3px 0 #f59e0b66,
+    6px 3px 0 #f59e0b66,
+    3px 4px 0 #f59e0b88,
+    4px 4px 0 #f59e0b88,
+    5px 4px 0 #f59e0b88,
+    2px 5px 0 #f59e0b44,
+    6px 5px 0 #f59e0b44 !important;
+  animation: monitor-glow 0.4s ease-in-out infinite;
+}
+
+/* ── Completed: calm steady glow ── */
+.state-completed .agent-sprite {
+  opacity: 0.85;
+}
+
+.state-completed .monitor-screen {
+  background: #10b98115;
+  box-shadow: 0 0 6px #10b98118;
+}
+
+/* FEAT-06: Monitor content per-state pixel art
+   ─────────────────────────────────────────────
+   All states use !important to override agent-specific content selectors.
+   monitor-content is scaled 2x, positioned at bottom:33px left:33px.
+   Visible screen area ≈ 8px wide × 5px tall at 2x scale.
+*/
+
+/* ── Blinking cursor (thinking) ── */
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.state-thinking .monitor-content {
+  box-shadow:
+    2px 3px 0 #e2e8f0cc,
+    3px 3px 0 #e2e8f0cc !important;
+  opacity: 1;
+  animation: cursor-blink 0.8s step-end infinite;
+}
+
+/* ── Scrolling code lines (tool_running) ── */
+@keyframes code-scroll {
+  0%   { transform: scale(2) translateY(0px); }
+  100% { transform: scale(2) translateY(-4px); }
+}
+
+.state-tool_running .monitor-content {
+  box-shadow:
+    1px 1px 0 #10b98177,
+    2px 1px 0 #10b98177,
+    3px 1px 0 #10b98155,
+    5px 1px 0 #60a5fa66,
+    6px 1px 0 #60a5fa66,
+    1px 2px 0 #ef444455,
+    2px 2px 0 #ef444455,
+    3px 2px 0 #ef444455,
+    4px 2px 0 #ef444455,
+    2px 3px 0 #fbbf2466,
+    3px 3px 0 #fbbf2466,
+    5px 3px 0 #10b98155,
+    1px 4px 0 #60a5fa44,
+    2px 4px 0 #60a5fa44,
+    3px 4px 0 #60a5fa44,
+    5px 4px 0 #ef444444,
+    6px 4px 0 #ef444444,
+    1px 5px 0 #fbbf2444,
+    3px 5px 0 #fbbf2444,
+    4px 5px 0 #fbbf2444,
+    6px 5px 0 #10b98144,
+    1px 6px 0 #10b98166,
+    2px 6px 0 #10b98166,
+    4px 6px 0 #60a5fa55,
+    5px 6px 0 #60a5fa55,
+    6px 6px 0 #60a5fa55 !important;
+  opacity: 1;
+  animation: code-scroll 0.6s steps(4) infinite;
+}
+
+/* ── Error X symbol ── */
+.state-error .monitor-content {
+  box-shadow:
+    2px 2px 0 #ef4444aa,
+    6px 2px 0 #ef4444aa,
+    3px 3px 0 #ef4444aa,
+    5px 3px 0 #ef4444aa,
+    4px 4px 0 #ef4444cc,
+    3px 5px 0 #ef4444aa,
+    5px 5px 0 #ef4444aa,
+    2px 6px 0 #ef4444aa,
+    6px 6px 0 #ef4444aa !important;
+  opacity: 1;
+  animation: monitor-glow 0.6s ease-in-out infinite;
+}
+
+/* ── Checkmark (completed) ── */
+.state-completed .monitor-content {
+  box-shadow:
+    2px 5px 0 #10b981aa,
+    3px 6px 0 #10b981cc,
+    4px 5px 0 #10b981cc,
+    5px 4px 0 #10b981aa,
+    6px 3px 0 #10b98188 !important;
+  opacity: 1;
+}
+
+/* ── Starting: fade-in + glow pulse on sprite container ── */
+.agent-sprite-container.state-starting {
+  animation: starting-glow-pulse 0.6s ease-out forwards,
+             starting-border-pulse 1.8s ease-in-out 0.6s infinite;
+}
+
+.agent-sprite-container.state-starting .agent-sprite {
+  animation: idle-bob 3s ease-in-out infinite;
+}
+
+.agent-sprite-container.state-starting .monitor-screen {
+  animation: monitor-flicker 4s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+/* ── Stopping: slow opacity fade-pulse on sprite container and children ── */
+.agent-sprite-container.state-stopping {
+  animation: stopping-fade-pulse 1.4s ease-in-out infinite;
+}
+
+.agent-sprite-container.state-stopping .agent-sprite {
+  animation: stopping-fade-pulse 1.4s ease-in-out infinite;
+}
+
+.agent-sprite-container.state-stopping .monitor-screen {
+  animation: stopping-fade-pulse 1.4s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+.agent-sprite-container.state-stopping .monitor-content {
+  opacity: 0.4;
+}
+
+
+/* ============================================================
+   SHADOW / GROUND EFFECT
+   ============================================================ */
+
+.agent-shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 6px;
+  background: radial-gradient(ellipse, #00000033 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+
+/* ============================================================
+   LAYER 4: Sprite idle breathing + monitor reactivity
+   ============================================================ */
+
+/* Idle breathing — default animation when no active state */
+@keyframes sprite-breathe {
+  0%, 100% { transform: scale(3) translateY(0); }
+  50% { transform: scale(3) translateY(-2px); }
+}
+.agent-sprite-container .agent-sprite {
+  animation: sprite-breathe 3.5s ease-in-out infinite;
+}
+
+/* Monitor cursor for writing state */
+@keyframes monitor-typing-cursor {
+  0%, 49% { border-right-color: var(--text-primary); }
+  50%, 100% { border-right-color: transparent; }
+}
+.state-writing .monitor-screen::after {
+  content: '>';
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-size: 6px;
+  color: var(--text-primary);
+  font-family: monospace;
+  border-right: 1px solid;
+  animation: monitor-typing-cursor 0.8s step-end infinite;
+}
+
+.state-reading .monitor-screen::after {
+  content: '...';
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-size: 6px;
+  color: var(--text-dim);
+  font-family: monospace;
+}
+
+
+/* ============================================================
+   ACCESSIBILITY: Reduced motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-sprite-container .agent-sprite,
+  .state-idle .agent-sprite,
+  .state-idle .agent-shadow,
+  .state-idle .monitor-screen,
+  .state-idle .monitor-content,
+  .agent-sprite-container.state-idle::before,
+  .agent-sprite-container.state-idle::after,
+  .state-thinking .agent-sprite,
+  .state-tool_running .agent-sprite,
+  .state-reading .agent-sprite,
+  .state-writing .agent-sprite,
+  .state-dispatching .agent-sprite,
+  .state-speaking .agent-sprite,
+  .state-error .agent-sprite,
+  .state-idle .desk-sprite,
+  .state-thinking .monitor-screen,
+  .state-thinking .monitor-content,
+  .state-tool_running .monitor-content,
+  .state-reading .monitor-content,
+  .state-writing .monitor-content,
+  .state-dispatching .monitor-content,
+  .state-error .monitor-screen,
+  .agent-sprite-container.state-starting,
+  .agent-sprite-container.state-starting .agent-sprite,
+  .agent-sprite-container.state-starting .monitor-screen,
+  .agent-sprite-container.state-stopping,
+  .agent-sprite-container.state-stopping .agent-sprite,
+  .agent-sprite-container.state-stopping .monitor-screen,
+  .agent-sprite-container.matrix-spawn .agent-sprite,
+  .agent-sprite-container.matrix-despawn .agent-sprite,
+  .agent-speech-bubble,
+  .dispatch-ripple {
+    animation: none;
+  }
+  /* Hide particles for reduced motion */
+  .agent-sprite-container.state-idle::before,
+  .agent-sprite-container.state-idle::after {
+    display: none;
+  }
+}
+
+
+/* ============================================================
+   AGENT LABEL (optional: name badge below desk)
+   ============================================================ */
+
+.agent-label {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: monospace, 'Courier New', Courier;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.agent-sprite-container[data-agent="orchestrator"] .agent-label { color: #f59e0b88; }
+.agent-sprite-container[data-agent="builder"] .agent-label      { color: #ef444488; }
+.agent-sprite-container[data-agent="architect"] .agent-label     { color: #3b82f688; }
+.agent-sprite-container[data-agent="social"] .agent-label        { color: #10b98188; }
+
+
+/* ============================================================
+   MATRIX RAIN — Spawn / Despawn Effect
+   (Adapted from pixel-agents Canvas matrixEffect.ts to CSS)
+   ============================================================ */
+
+.agent-sprite-container.matrix-spawn {
+  position: relative;
+}
+
+.agent-sprite-container.matrix-spawn .agent-sprite {
+  animation: matrix-spawn 0.8s ease-out forwards !important;
+}
+
+.agent-sprite-container.matrix-spawn .desk-sprite {
+  animation: matrix-spawn 0.8s ease-out 0.15s both !important;
+}
+
+.agent-sprite-container.matrix-spawn .monitor-screen {
+  animation: matrix-spawn 0.8s ease-out 0.1s both !important;
+}
+
+/* Matrix rain overlay behind the sprite during spawn — overrides idle particles */
+.agent-sprite-container.matrix-spawn::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      rgba(0, 255, 65, 0.15) 2px,
+      transparent 4px
+    ) !important;
+  box-shadow: none !important;
+  animation: matrix-rain-overlay 0.8s linear forwards !important;
+  z-index: 10 !important;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* Green head pixel flash on spawn — overrides idle particles */
+.agent-sprite-container.matrix-spawn::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: 4px !important;
+  height: 4px !important;
+  background: #00ff41 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 8px 3px #00ff41, 0 0 16px 6px rgba(0, 255, 65, 0.4) !important;
+  animation: matrix-rain-overlay 0.6s linear forwards !important;
+  z-index: 11 !important;
+  pointer-events: none;
+}
+
+/* Despawn */
+.agent-sprite-container.matrix-despawn .agent-sprite {
+  animation: matrix-despawn 0.8s ease-in forwards !important;
+}
+
+.agent-sprite-container.matrix-despawn .desk-sprite {
+  animation: matrix-despawn 0.8s ease-in 0.1s both !important;
+}
+
+.agent-sprite-container.matrix-despawn .monitor-screen {
+  animation: matrix-despawn 0.8s ease-in forwards !important;
+}
+
+.agent-sprite-container.matrix-despawn .monitor-content {
+  animation: matrix-despawn 0.6s ease-in forwards !important;
+}
+
+.agent-sprite-container.matrix-despawn::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      rgba(0, 255, 65, 0.12) 2px,
+      transparent 4px
+    ) !important;
+  box-shadow: none !important;
+  animation: matrix-rain-overlay 0.8s linear 0.2s both !important;
+  z-index: 10 !important;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+
+/* ============================================================
+   SPEECH BUBBLES — Active tool display above sprites
+   (Adapted from pixel-agents renderBubbles + ToolOverlay)
+   ============================================================ */
+
+.agent-speech-bubble {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 16, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-family: 'Berkeley Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+  animation: bubble-appear 0.3s ease-out forwards;
+}
+
+/* Bubble tail / pointer */
+.agent-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(15, 16, 24, 0.92);
+}
+
+/* Idle float when bubble persists */
+.agent-speech-bubble.floating {
+  animation: bubble-float 2s ease-in-out infinite;
+}
+
+/* Bubble dot color by tool category */
+.agent-speech-bubble .bubble-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.bubble-dot.cat-read    { background: #06b6d4; box-shadow: 0 0 4px #06b6d466; }
+.bubble-dot.cat-write   { background: #a78bfa; box-shadow: 0 0 4px #a78bfa66; }
+.bubble-dot.cat-run     { background: #10b981; box-shadow: 0 0 4px #10b98166; }
+.bubble-dot.cat-think   { background: #f59e0b; box-shadow: 0 0 4px #f59e0b66; }
+.bubble-dot.cat-dispatch{ background: #f97316; box-shadow: 0 0 4px #f9731666; }
+.bubble-dot.cat-error   { background: #ef4444; box-shadow: 0 0 4px #ef444466; }
+
+
+/* ============================================================
+   DISPATCH RIPPLE — Signal wave when @agent routing
+   ============================================================ */
+
+.dispatch-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  margin-left: -10px;
+  border: 2px solid var(--color-orchestrator);
+  border-radius: 50%;
+  animation: dispatch-ripple 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0;
+}
+
+.dispatch-ripple.ring-2 { animation-delay: 0.15s; }
+.dispatch-ripple.ring-3 { animation-delay: 0.30s; }
+
+/* Agent-specific ripple colors */
+.agent-sprite-container[data-agent="orchestrator"] .dispatch-ripple { border-color: var(--color-orchestrator); }
+.agent-sprite-container[data-agent="builder"] .dispatch-ripple      { border-color: var(--color-builder); }
+.agent-sprite-container[data-agent="architect"] .dispatch-ripple     { border-color: var(--color-architect); }
+.agent-sprite-container[data-agent="social"] .dispatch-ripple        { border-color: var(--color-social); }
+
+
+/* ============================================================
+   SUB-AGENT DISPATCH INDICATOR
+   (Ephemeral link line when one agent dispatches to another)
+   ============================================================ */
+
+.dispatch-indicator {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 10px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #f97316;
+  white-space: nowrap;
+  z-index: 15;
+  pointer-events: none;
+  animation: bubble-appear 0.3s ease-out forwards;
+}
+
+.dispatch-indicator .dispatch-arrow {
+  font-size: 10px;
+  animation: dispatching 0.4s ease-in-out infinite;
+}

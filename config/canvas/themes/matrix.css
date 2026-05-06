@@ -1,0 +1,201 @@
+/* The Matrix — "The Construct"
+   Pure green phosphor on absolute black. Digital reality. */
+
+[data-theme="matrix"] {
+  --bg-primary: #000800;
+  --bg-secondary: #001200;
+  --bg-panel: #001200;
+  --bg-panel-alpha: rgba(0,18,0,0.82);
+  --panel-blur: 6px;
+  --bg-input: #000a00;
+  --border: rgba(0,255,65,0.15);
+  --border-active: rgba(0,255,65,0.3);
+  --text-primary: #00ff41;
+  --text-secondary: #00bb38;
+  --text-dim: #009930;
+  --text-bright: #80ffa0;
+  --color-ok: #00ff41;
+  --color-error: #00ff41;
+  --color-warning: #00ff41;
+  --color-orchestrator: #00ff41;
+  --color-builder: #00cc33;
+  --color-architect: #00aa28;
+  --color-social: #008820;
+  --scanline-opacity: 0.18;
+  --scanline-color: rgba(0,255,65,0.5);
+  --vignette-intensity: 0.45;
+}
+
+[data-theme="matrix"] .terminal-container {
+  text-shadow: 0 0 8px rgba(0,255,65,0.3);
+}
+
+[data-theme="matrix"] .panel-title,
+[data-theme="matrix"] .header-title,
+[data-theme="matrix"] .sidebar-btn {
+  text-shadow: 0 0 12px rgba(0,255,65,0.5);
+}
+
+@keyframes matrix-cursor {
+  0%, 49% { border-right-color: #00ff41; }
+  50%, 100% { border-right-color: transparent; }
+}
+[data-theme="matrix"] .state-badge {
+  border-right: 2px solid;
+  animation: matrix-cursor 0.8s step-end infinite;
+  padding-right: 2px;
+}
+
+[data-theme="matrix"] .panel {
+  border: 1px solid rgba(0,255,65,0.2);
+  border-radius: 0;
+  --bg-header-alpha: rgba(0,18,0,0.7);
+}
+/* Digital rain streaks dripping down inside panels */
+[data-theme="matrix"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(0,255,65,0.15) 0%, transparent 40%) no-repeat 15% -100% / 1px 60px,
+    linear-gradient(180deg, rgba(0,255,65,0.12) 0%, transparent 50%) no-repeat 35% -80% / 1px 45px,
+    linear-gradient(180deg, rgba(0,255,65,0.18) 0%, transparent 35%) no-repeat 55% -120% / 1px 70px,
+    linear-gradient(180deg, rgba(0,255,65,0.10) 0%, transparent 45%) no-repeat 75% -60% / 1px 50px,
+    linear-gradient(180deg, rgba(0,255,65,0.14) 0%, transparent 40%) no-repeat 90% -90% / 1px 55px;
+  animation: matrix-rain-drip 3s linear infinite;
+}
+@keyframes matrix-rain-drip {
+  0%   { background-position: 15% -60px, 35% -45px, 55% -70px, 75% -50px, 90% -55px; }
+  100% { background-position: 15% calc(100% + 60px), 35% calc(100% + 45px), 55% calc(100% + 70px), 75% calc(100% + 50px), 90% calc(100% + 55px); }
+}
+[data-theme="matrix"] .panel:nth-child(2)::after { animation-duration: 4s; animation-delay: -0.5s; }
+[data-theme="matrix"] .panel:nth-child(3)::after { animation-duration: 3.5s; animation-delay: -1.2s; }
+[data-theme="matrix"] .panel:nth-child(4)::after { animation-duration: 4.5s; animation-delay: -2s; }
+/* Green edge glow */
+[data-theme="matrix"] .panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 0 2px 15px -5px rgba(0,255,65,0.15),
+    inset 0 -2px 15px -5px rgba(0,255,65,0.08);
+}
+
+[data-theme="matrix"] .header-status::after {
+  content: 'FREE YOUR MIND';
+  font-size: 7px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin-left: 12px;
+}
+
+/* ── Phase 2: Page Transitions ─────────────────────────────────────────── */
+@keyframes matrix-leave {
+  0%   { opacity: 1; transform: translateY(0); filter: blur(0); }
+  60%  { opacity: 0.4; transform: translateY(4px); filter: blur(1px); }
+  100% { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+}
+@keyframes matrix-enter {
+  0%   { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+  40%  { opacity: 0.4; transform: translateY(4px); filter: blur(1px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+[data-theme="matrix"] .page-leaving {
+  animation: matrix-leave 0.3s ease-in forwards !important;
+}
+[data-theme="matrix"] .page-entering {
+  animation: matrix-enter 0.3s ease-out forwards !important;
+}
+
+/* Phase 2: Deresolution — team card */
+[data-theme="matrix"] .agent-offline {
+  filter: grayscale(1) brightness(0.15);
+  opacity: 0.4;
+  image-rendering: pixelated;
+}
+
+/* ── Matrix Digital Rain — signature background canvas ────────────────── */
+[data-theme="matrix"] .terminal-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(0,255,65,0.15) 18px, rgba(0,255,65,0.15) 19px),
+    repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(0,255,65,0.06) 24px, rgba(0,255,65,0.06) 25px);
+  background-size: 100% 100%;
+}
+
+/* Rain columns — uses multiple box-shadows to create falling column illusion */
+[data-theme="matrix"] .terminal-container::after {
+  /* Override the universal vignette — matrix uses rain instead */
+  background:
+    linear-gradient(180deg,
+      rgba(0,255,65,0.08) 0%,
+      transparent 10%,
+      transparent 85%,
+      rgba(0,255,65,0.04) 100%
+    ),
+    /* Column 1 */ linear-gradient(180deg, rgba(0,255,65,0.3) 0%, rgba(0,255,65,0.1) 30%, transparent 60%) no-repeat 5% 0 / 1px 120px,
+    /* Column 2 */ linear-gradient(180deg, rgba(0,255,65,0.25) 0%, rgba(0,255,65,0.08) 40%, transparent 70%) no-repeat 12% 20% / 1px 100px,
+    /* Column 3 */ linear-gradient(180deg, rgba(0,255,65,0.35) 0%, rgba(0,255,65,0.12) 25%, transparent 55%) no-repeat 18% 40% / 1px 90px,
+    /* Column 4 */ linear-gradient(180deg, rgba(0,255,65,0.2) 0%, rgba(0,255,65,0.06) 35%, transparent 65%) no-repeat 25% 10% / 1px 130px,
+    /* Column 5 */ linear-gradient(180deg, rgba(0,255,65,0.3) 0%, rgba(0,255,65,0.1) 30%, transparent 60%) no-repeat 32% 50% / 1px 110px,
+    /* Column 6 */ linear-gradient(180deg, rgba(0,255,65,0.25) 0%, rgba(0,255,65,0.08) 40%, transparent 70%) no-repeat 40% 5% / 1px 95px,
+    /* Column 7 */ linear-gradient(180deg, rgba(0,255,65,0.35) 0%, rgba(0,255,65,0.12) 25%, transparent 55%) no-repeat 48% 30% / 1px 140px,
+    /* Column 8 */ linear-gradient(180deg, rgba(0,255,65,0.2) 0%, rgba(0,255,65,0.06) 35%, transparent 65%) no-repeat 55% 60% / 1px 85px,
+    /* Column 9 */ linear-gradient(180deg, rgba(0,255,65,0.3) 0%, rgba(0,255,65,0.1) 30%, transparent 60%) no-repeat 63% 15% / 1px 120px,
+    /* Column 10 */ linear-gradient(180deg, rgba(0,255,65,0.25) 0%, rgba(0,255,65,0.08) 40%, transparent 70%) no-repeat 70% 45% / 1px 100px,
+    /* Column 11 */ linear-gradient(180deg, rgba(0,255,65,0.35) 0%, rgba(0,255,65,0.12) 25%, transparent 55%) no-repeat 78% 25% / 1px 110px,
+    /* Column 12 */ linear-gradient(180deg, rgba(0,255,65,0.2) 0%, rgba(0,255,65,0.06) 35%, transparent 65%) no-repeat 85% 55% / 1px 130px,
+    /* Column 13 */ linear-gradient(180deg, rgba(0,255,65,0.3) 0%, rgba(0,255,65,0.1) 30%, transparent 60%) no-repeat 92% 35% / 1px 90px;
+  animation: matrix-rain-fall 8s linear infinite !important;
+  border-radius: 0 !important;
+  /* Keep vignette too */
+  box-shadow: inset 0 0 120px 40px rgba(0,0,0, var(--vignette-intensity, 0.45));
+}
+
+@keyframes matrix-rain-fall {
+  0%   { background-position:
+    5% -120px, 12% -80px, 18% -60px, 25% -130px,
+    32% -50px, 40% -100px, 48% -30px, 55% -90px,
+    63% -120px, 70% -55px, 78% -75px, 85% -45px, 92% -65px,
+    0% 0%; }
+  100% { background-position:
+    5% calc(100% + 120px), 12% calc(100% + 80px), 18% calc(100% + 60px), 25% calc(100% + 130px),
+    32% calc(100% + 50px), 40% calc(100% + 100px), 48% calc(100% + 30px), 55% calc(100% + 90px),
+    63% calc(100% + 120px), 70% calc(100% + 55px), 78% calc(100% + 75px), 85% calc(100% + 45px), 92% calc(100% + 65px),
+    0% 0%; }
+}
+
+/* Matrix green phosphor bloom on everything */
+[data-theme="matrix"] * {
+  --color-orchestrator: #00ff41;
+  --color-builder: #00cc33;
+  --color-architect: #00aa28;
+  --color-social: #008820;
+}
+
+/* ── Vocabulary / Phosphor Enhancements ───────────────────────────────── */
+
+/* Green progress bars with glow */
+[data-theme="matrix"] .agent-sparkline {
+  box-shadow: 0 0 6px rgba(0,255,65,0.25);
+}
+
+/* Extra phosphor glow on panel titles */
+[data-theme="matrix"] .panel-title {
+  text-shadow: 0 0 8px rgba(0,255,65,0.4), 0 0 16px rgba(0,255,65,0.2);
+}
+
+/* Active agent card glow */
+[data-theme="matrix"] .agent-card.active {
+  background: rgba(0,255,65,0.02);
+  box-shadow: inset 0 0 10px rgba(0,255,65,0.05);
+}

@@ -1,0 +1,35 @@
+# Phase 05 HARDEN-03: server-side gitleaks scan
+# Runs on every push to any branch and on every PR.
+# Fails the build (and blocks merge when branch protection requires a passing check)
+# if gitleaks detects any secrets in the diff or full tree.
+
+name: gitleaks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scan:
+    name: gitleaks detect
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so PR scans can compare against the base ref.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Honor repo-local config & ignore file
+          GITLEAKS_CONFIG: .gitleaks.toml  # used IF present; default rules otherwise
+          GITLEAKS_NOTIFY_USER_LIST: ''
