@@ -52,7 +52,10 @@ BRIDGE_PORT   = int(os.environ.get("BRIDGE_PORT", "8100"))
 # --- ADAPT-06: adapter discovery singletons (Wave 5) -----------------------------
 from adapters import AgentDefinition, ModelProvider, Integration, RuntimeAdapter, _scan  # noqa: E402
 
-MC_AGENTS_DIR = Path(os.environ.get("MC_AGENTS_DIR", "config/agents"))
+# Anchor MC_AGENTS_DIR to the repo root regardless of CWD:
+# bridge_server.py → server/ → <repo-root>/
+_DEFAULT_AGENTS_DIR = Path(__file__).parent.parent / "config" / "agents"
+MC_AGENTS_DIR = Path(os.environ.get("MC_AGENTS_DIR", str(_DEFAULT_AGENTS_DIR)))
 try:
     AGENTS: list[AgentDefinition] = AgentDefinition.load_all(MC_AGENTS_DIR)
 except Exception as _e:  # noqa: BLE001
@@ -120,8 +123,12 @@ RECONNECT_DELAY_SEC = 3.0
 
 # Mission Control: Telegram chat relay
 # Priority: env var > sandbox .env file
+# Both TELEGRAM_BOT_TOKEN and TELEGRAM_DEFAULT_CHAT_ID are needed for the
+# dashboard ↔ Telegram message mirror to work. If either is missing, the
+# /api/chat handler silently skips the Telegram relay (gateway-only mode).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-if not TELEGRAM_BOT_TOKEN:
+TELEGRAM_DEFAULT_CHAT_ID = os.environ.get("TELEGRAM_DEFAULT_CHAT_ID", "")
+if not TELEGRAM_BOT_TOKEN or not TELEGRAM_DEFAULT_CHAT_ID:
     _sandbox_env = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "..", ".env",
@@ -130,12 +137,14 @@ if not TELEGRAM_BOT_TOKEN:
         with open(_sandbox_env, "r") as _f:
             for _line in _f:
                 _line = _line.strip()
-                if _line.startswith("TELEGRAM_BOT_TOKEN="):
+                if not TELEGRAM_BOT_TOKEN and _line.startswith("TELEGRAM_BOT_TOKEN="):
                     TELEGRAM_BOT_TOKEN = _line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+                elif not TELEGRAM_DEFAULT_CHAT_ID and _line.startswith("TELEGRAM_DEFAULT_CHAT_ID="):
+                    TELEGRAM_DEFAULT_CHAT_ID = _line.split("=", 1)[1].strip().strip('"').strip("'")
     except (FileNotFoundError, PermissionError):
         pass
-TELEGRAM_DEFAULT_CHAT_ID = os.environ.get("TELEGRAM_DEFAULT_CHAT_ID")  # no default — must be set in env
+if not TELEGRAM_DEFAULT_CHAT_ID:
+    TELEGRAM_DEFAULT_CHAT_ID = None  # signal "unset" for downstream `if` checks
 
 # Mission Control: Dashboard static files (canvas directory)
 _BRIDGE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -591,11 +600,121 @@ async def connect_chat_ws() -> bool:
         return False
 
 
+async def _mirror_chat_event_to_mc(data: dict) -> None:
+    """
+    Process a gateway broadcast event arriving on the chat WS connection.
+
+    Why this exists: gateway_ws and chat_ws both connect with client.id
+    "gateway-client" (an allowlisted value the gateway validates). The
+    gateway then routes broadcast events to whichever backend connection
+    it picks — in practice that's chat_ws. Without this mirror, the
+    dashboard never sees agent replies or routing events.
+
+    Handles only what the dashboard chat panel needs:
+      - stream='assistant' chunks → accumulate text per runId
+      - stream='lifecycle' phase='end' → broadcast final reply to MC
+      - stream='lifecycle' phase='start' on tracked runs → mark for TG forward
+    """
+    event_type = data.get("event", "")
+    if event_type != "agent":
+        return
+
+    payload = data.get("payload", {})
+    run_id = payload.get("runId", "")
+    stream_type = payload.get("stream", "")
+    if not run_id:
+        return
+
+    # Accumulate streaming assistant text for this run
+    if stream_type == "assistant":
+        resp_data = payload.get("data", {})
+        full_text = resp_data.get("text", "") if isinstance(resp_data, dict) else ""
+        if full_text:
+            _assistant_stream_text[run_id] = full_text
+        return
+
+    if stream_type != "lifecycle":
+        return
+
+    phase = (payload.get("data", {}) or {}).get("phase", "")
+    session_key = payload.get("sessionKey", "")
+
+    # On lifecycle start, register tracked runs for Telegram forwarding so a
+    # later "end" knows whether to forward the reply back to TG. Also mirror
+    # Telegram-originated user messages to the dashboard chat panel so the
+    # operator sees the inbound message that the agent is responding to.
+    if phase == "start":
+        if session_key in _pending_forward_sessions:
+            _pending_forward_sessions.discard(session_key)
+            _forward_run_ids.add(run_id)
+            global _draft_counter
+            _draft_counter += 1
+            _active_drafts[run_id] = _draft_counter
+            log.info(
+                f"Run tracked for TG forwarding (chat_ws mirror): {run_id[:12]} "
+                f"session={session_key} (draft_id={_draft_counter})"
+            )
+        # Telegram → dashboard mirror: when a Telegram-originated agent run
+        # starts, fetch the user's incoming message from the agent session
+        # file (Docker exec) and broadcast it to MC clients as a chat event.
+        if "telegram" in session_key:
+            asyncio.create_task(
+                _emit_telegram_user_message_to_mc(session_key, run_id)
+            )
+        return
+
+    if phase != "end":
+        return
+
+    final_text = _assistant_stream_text.pop(run_id, "")
+    if not final_text:
+        return
+
+    resp_agent_id = _resolve_agent_from_session_key(session_key)
+
+    # Forward to Telegram if tracked
+    if run_id in _forward_run_ids:
+        _forward_run_ids.discard(run_id)
+        _active_drafts.pop(run_id, None)
+        _draft_last_sent.pop(run_id, None)
+        log.info(
+            f"Forwarding response to Telegram (chat_ws mirror): "
+            f"{len(final_text)} chars, agent={resp_agent_id}"
+        )
+        asyncio.create_task(
+            _forward_response_to_telegram(final_text, resp_agent_id)
+        )
+        if resp_agent_id:
+            _tg_conversation["agent_id"] = resp_agent_id
+            _tg_conversation["session_key"] = session_key
+            _tg_conversation["updated_at"] = time.monotonic()
+
+    # Always broadcast the agent reply to MC dashboard
+    _mc_chat_event = {
+        "type": "event",
+        "event": "chat",
+        "payload": {
+            "role": "assistant",
+            "agentId": resp_agent_id or "unknown",
+            "text": final_text,
+            "runId": run_id,
+            "sessionKey": session_key,
+            "state": "final",
+            "source": "bridge",
+        },
+    }
+    _broadcast_to_mc(_mc_chat_event)
+    log.info(
+        f"Agent response broadcast to MC chat (chat_ws mirror) "
+        f"({len(final_text)} chars, agent={resp_agent_id})"
+    )
+
+
 async def chat_ws_listener():
     """
     Listen for RPC responses on the chat WebSocket.
     Resolves pending futures in _chat_ws_pending.
-    Also silently consumes broadcast events (we don't need them here).
+    Also mirrors broadcast events to MC via _mirror_chat_event_to_mc.
     """
     global chat_ws, chat_ws_connected
 
@@ -620,7 +739,20 @@ async def chat_ws_listener():
                         future = _chat_ws_pending.pop(req_id)
                         if not future.done():
                             future.set_result(data)
-                # Silently consume broadcast events on this connection
+                # ────────────────────────────────────────────────────────────
+                # Mirror broadcast events to MC dashboard.
+                # The gateway routes agent-reply events to whichever backend
+                # connection it picks; in practice events arrive on chat_ws
+                # while gateway_ws only sees health pings. So we need to
+                # process the agent-reply lifecycle here to keep the MC chat
+                # panel in sync. Processes only the minimum needed: stream
+                # text accumulation + final broadcast on lifecycle end.
+                # ────────────────────────────────────────────────────────────
+                elif data.get("type") == "event":
+                    try:
+                        await _mirror_chat_event_to_mc(data)
+                    except Exception as e:
+                        log.warning(f"Chat WS: mirror error: {e}")
         except websockets.exceptions.ConnectionClosed as e:
             log.warning(f"Chat WS: disconnected ({e})")
         except Exception as e:
@@ -1630,6 +1762,308 @@ async def _discover_telegram_session_file() -> Optional[str]:
         return None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Telegram → Mission Control mirror via gateway log tail
+#
+# When the gateway processes Telegram messages internally (channels.telegram
+# enabled in openclaw.json), it does NOT broadcast lifecycle/chat events over
+# the WebSocket protocol. The bridge therefore can't catch user messages on
+# either gateway_ws or chat_ws — confirmed by zero `event/agent` events
+# arriving on either connection during a Telegram-originated run.
+#
+# The gateway DOES write a structured JSON line to /tmp/openclaw/openclaw-*.log
+# whenever Telegram delivers an inbound update, under the
+# `gateway/channels/telegram/raw-update` subsystem. This loop tails that file
+# inside the Docker container, parses each line, filters for raw-updates, and
+# broadcasts a synthetic chat event to MC clients so the operator sees the
+# inbound Telegram message in the dashboard chat panel.
+#
+# Dedup is keyed on Telegram's `update_id` to avoid replaying messages on
+# bridge restart (the tail starts at -n 0 so only NEW lines are read).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_tg_log_seen_update_ids: set = set()
+_tg_log_seen_msg_done_ids: set = set()  # dedup by Telegram inbound messageId for agent-reply mirroring
+
+
+async def _read_latest_assistant_reply(session_key: str) -> Optional[str]:
+    """
+    Read the agent's session JSONL inside Docker and return the most recent
+    assistant text. Used to surface a Telegram-handled agent reply on the
+    dashboard since those runs do not emit chat events over the WS.
+    """
+    try:
+        parts = session_key.split(":")
+        agent_dir = parts[1] if len(parts) > 1 else "orchestrator"
+        sessions_dir = f"/home/node/.openclaw/agents/{agent_dir}/sessions"
+
+        # Resolve the sessionId for this sessionKey via sessions.json
+        proc = await asyncio.create_subprocess_exec(
+            DOCKER_BIN, "exec", DOCKER_CONTAINER,
+            "cat", f"{sessions_dir}/sessions.json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+        if proc.returncode != 0:
+            return None
+        sessions = json.loads(stdout.decode())
+
+        session_id = None
+        for key, info in sessions.items():
+            if (key == session_key or key == "session:" + session_key) and info.get("sessionId"):
+                session_id = info["sessionId"]
+                break
+        if not session_id:
+            # Fallback: any session matching the chat-id portion
+            chat_part = parts[-1] if parts else ""
+            for key, info in sessions.items():
+                if "telegram" in key and chat_part and chat_part in key and info.get("sessionId"):
+                    session_id = info["sessionId"]
+                    break
+        if not session_id:
+            return None
+
+        # Read the JSONL and find the LAST line with role=assistant
+        proc2 = await asyncio.create_subprocess_exec(
+            DOCKER_BIN, "exec", DOCKER_CONTAINER,
+            "tail", "-n", "200", f"{sessions_dir}/{session_id}.jsonl",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout2, _ = await asyncio.wait_for(proc2.communicate(), timeout=10)
+        if proc2.returncode != 0:
+            return None
+
+        # Parse the session JSONL. Each line has the shape
+        #   {"type":"message", "message": {"role":"assistant"|"user"|"toolResult",
+        #     "content": [{"type":"text","text":"..."}, {"type":"thinking",...},
+        #                 {"type":"toolCall",...}], ...}}
+        # We want the LAST assistant turn whose content has at least one
+        # text block (skipping thinking-only and tool-call-only turns).
+        latest_assistant_text = None
+        for line in stdout2.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            # Support both nested ({"type":"message","message":{...}}) and flat
+            # ({"role":"assistant",...}) shapes.
+            inner_msg = row.get("message") if isinstance(row.get("message"), dict) else row
+            role = inner_msg.get("role", "")
+            if role != "assistant":
+                continue
+
+            content = inner_msg.get("content")
+            text = ""
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    btype = block.get("type", "")
+                    if btype == "text":
+                        text += block.get("text", "")
+                    # Skip thinking, toolCall, and other non-text blocks
+            elif isinstance(content, str):
+                text = content
+            elif isinstance(inner_msg.get("text"), str):
+                text = inner_msg["text"]
+
+            text = text.strip()
+            if not text:
+                continue
+
+            # Strip the appended model-report footer that the agent's session
+            # skill emits at the end of every reply (matches the cleanup that
+            # _forward_response_to_telegram does before sending to TG).
+            text = re.sub(r'(?m)^node\s+skills/.*$', '', text)
+            text = re.sub(r'📊\s*Model\s*\(effective\):.*$', '', text, flags=re.MULTILINE)
+            text = text.strip()
+
+            if text:
+                latest_assistant_text = text
+        return latest_assistant_text
+    except Exception as e:
+        log.warning("read latest assistant reply failed: %s", e)
+        return None
+
+
+async def _emit_telegram_agent_reply_to_mc(session_key: str, message_id: int):
+    """
+    Resolve the agent's most recent assistant reply for a Telegram-handled
+    run and broadcast it to MC clients as an assistant chat event so the
+    dashboard mirrors the Telegram conversation in both directions.
+    """
+    if message_id in _tg_log_seen_msg_done_ids:
+        return
+    _tg_log_seen_msg_done_ids.add(message_id)
+    if len(_tg_log_seen_msg_done_ids) > 500:
+        _tg_log_seen_msg_done_ids.clear()
+        _tg_log_seen_msg_done_ids.add(message_id)
+
+    # Small delay so the gateway has time to flush the assistant turn to disk
+    await asyncio.sleep(1.5)
+
+    text = await _read_latest_assistant_reply(session_key)
+    if not text:
+        log.info("📤 TG reply mirror: no assistant text found for sk=%s msgId=%s",
+                 session_key, message_id)
+        return
+
+    agent_id = _resolve_agent_from_session_key(session_key)
+    log.info("📤 TG→MC reply (%d chars, agent=%s, sk=%s)",
+             len(text), agent_id, session_key)
+
+    mc_event = {
+        "type": "event",
+        "event": "chat",
+        "payload": {
+            "role": "assistant",
+            "agentId": agent_id or "orchestrator",
+            "text": text,
+            "sessionKey": session_key,
+            "source": "telegram",
+            "state": "final",
+        },
+    }
+    _broadcast_to_mc(mc_event)
+
+
+async def telegram_log_tail_loop():
+    """
+    Background task: tail the gateway's daily log file inside Docker for
+    Telegram raw-update events and broadcast each as a chat event to MC.
+    Restarts on subprocess death with backoff.
+    """
+    while True:
+        proc = None
+        try:
+            # Tail the most-recent log file (filename includes today's date).
+            # `tail -F` follows file rotation. `-n 0` skips backlog so only
+            # NEW updates after the bridge starts are mirrored.
+            proc = await asyncio.create_subprocess_exec(
+                DOCKER_BIN, "exec", DOCKER_CONTAINER,
+                "sh", "-c",
+                'tail -F -n 0 "$(ls -t /tmp/openclaw/openclaw-*.log 2>/dev/null | head -1)"',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            log.info("📡 Telegram log tail started (container=%s)", DOCKER_CONTAINER)
+
+            async for raw_line in proc.stdout:
+                try:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line or not line.startswith("{"):
+                        continue
+
+                    entry = json.loads(line)
+                    subsystem_str = entry.get("0", "")
+                    inner = entry.get("1", "")
+
+                    # Branch B: agent finished processing a Telegram message —
+                    # broadcast its reply to MC.  Triggered by diagnostic line:
+                    #   "message processed: channel=telegram chatId=... messageId=N
+                    #    sessionId=... sessionKey=agent:...:telegram:... outcome=completed"
+                    if (
+                        "diagnostic" in subsystem_str
+                        and isinstance(inner, str)
+                        and inner.startswith("message processed:")
+                        and "channel=telegram" in inner
+                        and "outcome=completed" in inner
+                    ):
+                        try:
+                            sk_pos = inner.find("sessionKey=")
+                            mid_pos = inner.find("messageId=")
+                            if sk_pos >= 0 and mid_pos >= 0:
+                                sk_val = inner[sk_pos + len("sessionKey="):].split()[0].strip()
+                                mid_str = inner[mid_pos + len("messageId="):].split()[0].strip()
+                                mid_val = int(mid_str) if mid_str.isdigit() else None
+                                if sk_val and mid_val is not None:
+                                    asyncio.create_task(
+                                        _emit_telegram_agent_reply_to_mc(sk_val, mid_val)
+                                    )
+                        except Exception as parse_err:
+                            log.warning("TG reply-mirror trigger parse failed: %s", parse_err)
+                        continue
+
+                    if "telegram/raw-update" not in subsystem_str:
+                        continue
+
+                    if not isinstance(inner, str):
+                        continue
+
+                    json_start = inner.find("{")
+                    if json_start < 0:
+                        continue
+
+                    update = json.loads(inner[json_start:])
+                    update_id = update.get("update_id")
+                    msg = update.get("message") or update.get("edited_message") or {}
+                    text = msg.get("text", "") or msg.get("caption", "")
+                    msg_id = msg.get("message_id")
+                    chat = msg.get("chat", {}) or {}
+                    chat_id = chat.get("id")
+                    from_user = msg.get("from", {}) or {}
+                    user_name = (
+                        " ".join(filter(None, [from_user.get("first_name", ""), from_user.get("last_name", "")])).strip()
+                        or from_user.get("username", "")
+                        or "Telegram User"
+                    )
+
+                    if update_id is None or update_id in _tg_log_seen_update_ids:
+                        continue
+                    _tg_log_seen_update_ids.add(update_id)
+                    if len(_tg_log_seen_update_ids) > 500:
+                        # Bound the dedup set
+                        _tg_log_seen_update_ids.clear()
+                        _tg_log_seen_update_ids.add(update_id)
+
+                    if not text:
+                        continue
+
+                    log.info("📩 TG→MC tail: %s (chat=%s, update=%s) %r",
+                             user_name, chat_id, update_id, text[:80])
+
+                    mc_event = {
+                        "type": "event",
+                        "event": "chat",
+                        "payload": {
+                            "role": "user",
+                            "source": "telegram",
+                            "text": text,
+                            "chatId": str(chat_id) if chat_id is not None else "",
+                            "userName": user_name,
+                            "messageId": msg_id,
+                            "updateId": update_id,
+                            "state": "final",
+                        },
+                    }
+                    _broadcast_to_mc(mc_event)
+
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    pass  # malformed lines — skip silently
+                except Exception as parse_err:
+                    log.warning("TG log tail parse error: %s", parse_err)
+
+            log.warning("TG log tail subprocess ended; restarting in 5s")
+        except asyncio.CancelledError:
+            if proc:
+                try: proc.terminate()
+                except Exception: pass
+            raise
+        except Exception as e:
+            log.warning("TG log tail error: %s; retrying in 5s", e)
+        finally:
+            if proc:
+                try: proc.terminate()
+                except Exception: pass
+        await asyncio.sleep(5)
+
+
 async def telegram_polling_loop():
     """
     Poll Telegram Bot API for new messages via getUpdates long-polling.
@@ -1801,6 +2235,11 @@ async def lifespan(app: FastAPI):
     tasks = [
         asyncio.create_task(gateway_event_loop()),       # Listen to Gateway events
         asyncio.create_task(chat_ws_listener()),          # Chat WebSocket (webchat mode)
+        # Mirror Telegram-inbound messages to MC dashboard. The gateway
+        # processes Telegram internally and does not broadcast WS events for
+        # those runs, so we tail the gateway log file inside Docker as the
+        # signal source.
+        asyncio.create_task(telegram_log_tail_loop()),
         # NOTE: Telegram polling DISABLED here — gateway telegram is enabled in
         # openclaw.json and handles getUpdates natively.  Bridge only relays
         # outbound messages (user chat → TG sendMessage / sendPhoto).

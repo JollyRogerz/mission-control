@@ -245,7 +245,19 @@ Object.assign(MissionControl.prototype, {
   },
 
   connect() {
+    // Re-entrancy guard: if a connection is already open or in flight, no-op.
+    // Prevents the dual-startup race where terminal.js init AND pywebview's
+    // on_loaded callback both call connect(), with the second call closing the
+    // first WS while it's still CONNECTING (manifests as code-1005 reconnect loop).
+    if (this.ws && (
+        this.ws.readyState === WebSocket.CONNECTING ||
+        this.ws.readyState === WebSocket.OPEN
+      )) {
+      this._updateSystemStatus('Bridge already connecting/connected — skipping duplicate connect()');
+      return;
+    }
     if (this.ws) { try { this.ws.close(); } catch (_) {} this.ws = null; }
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.setGatewayStatus(false);
     this.setBridgeStatus(false);
     this._updateSystemStatus('Connecting to Bridge...');

@@ -236,7 +236,12 @@ Object.assign(MissionControl.prototype, {
     window._missionControl = this;
 
     try {
-      const resp = await fetch('/api/agents', { headers: { 'Content-Type': 'application/json' } });
+      const resp = await fetch(this.bridgeUrl + '/api/agents', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': this.bridgeToken || this.gatewayToken,
+        },
+      });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const agents = await resp.json();
       this._agents = agents;
@@ -259,6 +264,13 @@ Object.assign(MissionControl.prototype, {
           card.id = 'card-' + agent.id;
           card.dataset.agentIndex = index;   // D6: CSS [data-agent-index="N"]::after, W3 SoundEngine
           card.dataset.agentId = agent.id;   // D3: event delegation
+
+          // Tag the sprite-container with data-agent so AsciiOrbs.enableAsciiOrbs()
+          // can resolve a distinct per-agent color from the active theme palette.
+          // Without this, every container reports agentId='' and falls back to
+          // palette.orchestrator (all orbs render in the same color).
+          const spriteContainer = card.querySelector('.agent-sprite-container');
+          if (spriteContainer) spriteContainer.dataset.agent = agent.id;
 
           // Populate static display fields if present in the template
           const titleEl = card.querySelector('.panel-title');

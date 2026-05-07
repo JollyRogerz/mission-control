@@ -74,17 +74,43 @@
         // Disable ASCII orbs before switching
         if (mc && typeof mc.disableAsciiOrbs === 'function') mc.disableAsciiOrbs();
       }
-      // Swap CSS
+      // Swap CSS — and ALWAYS activate, even if the load event never fires
+      // (cached CSS doesn't re-emit load; same href doesn't trigger load;
+      //  a 404 emits error, not load). The activation path is what enables
+      //  ASCII orbs and per-theme cinematics, so it must never be gated.
       const link = document.getElementById('theme-css');
+      let activated = false;
+      const activateOnce = () => {
+        if (activated) return;
+        activated = true;
+        _activateTheme(id, theme, mc, opts);
+      };
       if (link) {
         const onLoad = () => {
           link.removeEventListener('load', onLoad);
-          _activateTheme(id, theme, mc, opts);
+          link.removeEventListener('error', onError);
+          activateOnce();
+        };
+        const onError = () => {
+          link.removeEventListener('load', onLoad);
+          link.removeEventListener('error', onError);
+          activateOnce();
         };
         link.addEventListener('load', onLoad);
+        link.addEventListener('error', onError);
+        // Force activation regardless: if the href is unchanged or the file is
+        // cached, neither load nor error will fire. Schedule a fallback.
+        const prevHref = link.href;
         link.href = theme.css;
+        if (prevHref === link.href) {
+          // No URL change → load event won't fire. Activate immediately.
+          setTimeout(activateOnce, 0);
+        } else {
+          // URL change but cached CSS may still skip load. Fallback after 300ms.
+          setTimeout(activateOnce, 300);
+        }
       } else {
-        _activateTheme(id, theme, mc, opts);
+        activateOnce();
       }
       // Update data attribute immediately for flash prevention
       document.documentElement.dataset.theme = id;

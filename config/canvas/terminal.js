@@ -240,7 +240,10 @@ class MissionControl {
 
     // FEAT-PAPERCLIP-2: Extended features — tracing, agent controls
     if (typeof this.initTraceViewer === 'function') this.initTraceViewer();
-    if (typeof this.initAgentControls === 'function') this.initAgentControls();
+    // initAgents() fetches /api/agents, clones the template into .agent-grid,
+    // populates this._agents cache, then calls initAgentControls() internally.
+    if (typeof this.initAgents === 'function') await this.initAgents();
+    else if (typeof this.initAgentControls === 'function') this.initAgentControls();
 
     // Initialize theme engine
     if (typeof this.initThemeEngine === 'function') this.initThemeEngine();

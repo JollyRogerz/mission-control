@@ -33,6 +33,36 @@ Object.assign(MissionControl.prototype, {
     this._connLastFrame = 0;
   },
 
+  /**
+   * Resolve an agent ID to a CSS-friendly hex color, preferring the active
+   * theme's orb palette so flowing orbs match the agent panels' orb colors.
+   * Falls back to the legacy CSS variable lookup, then a neutral gray.
+   */
+  _resolveAgentHex(agentId) {
+    // 1. AsciiOrbs theme palette via _getOrbColor (returns {r, g, b})
+    if (typeof this._getOrbColor === 'function') {
+      try {
+        const c = this._getOrbColor(agentId);
+        if (c && typeof c.r === 'number') {
+          const h = (n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
+          return '#' + h(c.r) + h(c.g) + h(c.b);
+        }
+      } catch (_) { /* fall through */ }
+    }
+    // 2. CSS variable (e.g. --color-orchestrator)
+    try {
+      const short = (agentId || '').replace(/^[a-z]+-/, '').replace(/-media$/, '');
+      const cssColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-' + short).trim();
+      if (cssColor) return cssColor;
+    } catch (_) { /* fall through */ }
+    // 3. Legacy AGENTS dict
+    if (typeof AGENTS === 'object' && AGENTS[agentId] && AGENTS[agentId].color) {
+      return AGENTS[agentId].color;
+    }
+    return '#6b7280';  // neutral gray fallback
+  },
+
   // ── Public API — called from EventHandler.js ──────────────────────────────
 
   /**
@@ -49,18 +79,23 @@ Object.assign(MissionControl.prototype, {
     }
 
     const id = ++this.connectionIdCounter;
-    const agentMeta = AGENTS[from];
-    const agentName = agentMeta ? agentMeta.name.toLowerCase().replace(/\s+/g, '-') : '';
-    const style = getComputedStyle(document.documentElement);
-    const cssColor = agentName ? style.getPropertyValue('--color-' + agentName).trim() : '';
-    const color = cssColor || (agentMeta ? agentMeta.color : '#6b7280');
+
+    // Resolve per-agent colors from the active theme's orb palette so the
+    // flowing orbs reflect WHICH two agents are talking. Each orb alternates
+    // between the FROM color (sender) and the TO color (recipient) so the
+    // viewer reads the connection as bidirectional. Falls back to the legacy
+    // CSS-var lookup, then a neutral gray.
+    const fromColor = this._resolveAgentHex(from);
+    const toColor = this._resolveAgentHex(to);
 
     const conn = {
       id,
       from,
       to,
       task: (task || '').slice(0, 80),
-      color,
+      color: fromColor,             // legacy field (kept for label/trail rendering)
+      fromColor,
+      toColor,
       state: 'dispatching',  // dispatching → in_progress → returning
       createdAt: Date.now(),
       timeoutTimer: setTimeout(() => this._fadeAndRemove(id), CONNECTION_TIMEOUT_MS),
@@ -68,7 +103,9 @@ Object.assign(MissionControl.prototype, {
       orbs: [],
     };
 
-    // Initialize orbs with staggered positions and randomized properties
+    // Initialize orbs with staggered positions and randomized properties.
+    // Even-indexed orbs carry the sender color, odd-indexed carry the
+    // recipient color — visually a two-color stream between the panels.
     for (let i = 0; i < ORB_COUNT; i++) {
       conn.orbs.push({
         progress: i / ORB_COUNT,
@@ -78,6 +115,7 @@ Object.assign(MissionControl.prototype, {
         wobbleFreq: 1.5 + Math.random() * 2,
         size: 0.7 + Math.random() * 0.6,
         opacity: 0.6 + Math.random() * 0.4,
+        color: (i % 2 === 0) ? fromColor : toColor,
         glowEl: null,
         mainEl: null,
         coreEl: null,
@@ -132,15 +170,18 @@ Object.assign(MissionControl.prototype, {
     refPath.setAttribute('opacity', '0');
     g.appendChild(refPath);
 
-    // Create 3 circle layers per orb
+    // Create 3 circle layers per orb. Each orb uses its own per-orb color
+    // (alternating from-color / to-color set in addConnection) so the
+    // bidirectional flow is visually distinguishable.
     for (let i = 0; i < conn.orbs.length; i++) {
       const orb = conn.orbs[i];
+      const orbColor = orb.color || conn.color;
 
       // Outer glow halo
       const glowEl = document.createElementNS(SVG_NS, 'circle');
       glowEl.classList.add('orb-glow');
       glowEl.setAttribute('r', String(12 * orb.size));
-      glowEl.setAttribute('fill', conn.color);
+      glowEl.setAttribute('fill', orbColor);
       glowEl.setAttribute('fill-opacity', '0.08');
       glowEl.setAttribute('filter', 'url(#glow-filter)');
       g.appendChild(glowEl);
@@ -150,7 +191,7 @@ Object.assign(MissionControl.prototype, {
       const mainEl = document.createElementNS(SVG_NS, 'circle');
       mainEl.classList.add('orb-main');
       mainEl.setAttribute('r', String(4.5 * orb.size));
-      mainEl.setAttribute('fill', conn.color);
+      mainEl.setAttribute('fill', orbColor);
       mainEl.setAttribute('fill-opacity', String(orb.opacity));
       mainEl.setAttribute('filter', 'url(#glow-filter)');
       g.appendChild(mainEl);
@@ -166,13 +207,13 @@ Object.assign(MissionControl.prototype, {
       g.appendChild(coreEl);
       orb.coreEl = coreEl;
 
-      // Trail dots (fade behind the orb)
+      // Trail dots (fade behind the orb) — match the orb's color
       orb.trailEls = [];
       for (let t = 1; t <= 3; t++) {
         const trail = document.createElementNS(SVG_NS, 'circle');
         trail.classList.add('packet-trail');
         trail.setAttribute('r', String((3 - t * 0.5) * orb.size));
-        trail.setAttribute('fill', conn.color);
+        trail.setAttribute('fill', orbColor);
         trail.setAttribute('fill-opacity', String(0.3 - t * 0.08));
         g.appendChild(trail);
         orb.trailEls.push(trail);
@@ -198,14 +239,29 @@ Object.assign(MissionControl.prototype, {
   /**
    * Get the sprite area's bounding rect in SVG-local coordinates.
    * Falls back to panel rect if sprite area isn't found.
+   *
+   * Tries multiple element IDs in order:
+   *   1. card-<agentId>            (dynamic-clone layout: card-horizon-orchestrator)
+   *   2. panel-<shortId>           (legacy per-agent-panel layout: panel-orchestrator)
+   *   3. card-<shortId>            (fallback for IDs without the horizon- prefix)
+   *
+   * The dynamic-clone layout is used after AgentPanel.initAgents() clones the
+   * agent-card-template into .agent-grid for each agent returned by /api/agents.
+   * Without the card-<agentId> lookup, _getPanelRect returns null and no
+   * connection orbs are drawn between agents.
    */
   _getPanelRect(agentId) {
     const shortId = agentId.replace(/^[a-z]+-/, '').replace(/-media$/, '');
-    const panelEl = document.getElementById('panel-' + shortId);
+    const panelEl =
+      document.getElementById('card-' + agentId) ||
+      document.getElementById('panel-' + shortId) ||
+      document.getElementById('card-' + shortId);
     if (!panelEl || panelEl.offsetWidth === 0) return null;
 
-    // Target the sprite area — the pixel character box
-    const spriteArea = panelEl.querySelector('.agent-sprite-area');
+    // Target the sprite area — the pixel character box (or its container)
+    const spriteArea =
+      panelEl.querySelector('.agent-sprite-area') ||
+      panelEl.querySelector('.agent-sprite-container');
     const target = spriteArea || panelEl;
 
     const r = target.getBoundingClientRect();
