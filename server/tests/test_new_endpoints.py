@@ -18,7 +18,6 @@ def fresh_bridge(tmp_path, monkeypatch):
     so we clear the dicts after import to isolate the empty-state contract.
     """
     monkeypatch.setenv("MC_AGENTS_DIR", str(tmp_path))
-    monkeypatch.setenv("VTUBER_ENABLED", "false")  # prevent VTuber connect during lifespan
     sys.modules.pop("bridge_server", None)
     import bridge_server  # noqa: F401 — trigger module-level _scan + load_all
     bridge_server.PROVIDERS.clear()
@@ -45,7 +44,6 @@ async def test_get_agents_one_yaml(tmp_path, monkeypatch):
         'id: demo\ndisplay_name: Demo\nemoji: "\U0001f916"\n', encoding="utf-8"
     )
     monkeypatch.setenv("MC_AGENTS_DIR", str(tmp_path))
-    monkeypatch.setenv("VTUBER_ENABLED", "false")
     sys.modules.pop("bridge_server", None)
     import bridge_server
     transport = ASGITransport(app=bridge_server.app)

@@ -120,8 +120,8 @@ Common things you'll change:
 Mission Control is built around four small Python `Protocol`s:
 
 - **AgentDefinition** — the YAML loader. Files in `config/agents/` become typed dataclasses.
-- **ModelProvider** — sends a prompt, yields tokens. Files in `openclaw-vtuber/server/providers/`.
-- **Integration** — outbound channel adapter (Discord, Telegram, ...). Directories in `openclaw-vtuber/server/integrations/`.
+- **ModelProvider** — sends a prompt, yields tokens. Files in `server/providers/`.
+- **Integration** — outbound channel adapter (Discord, Telegram, ...). Directories in `server/integrations/`.
 - **RuntimeAdapter** — decides *how* a turn is dispatched: `openclaw.py` (gateway WebSocket) or `local.py` (subprocess SDK).
 
 A FastAPI server (`bridge_server.py`) owns the dashboard, the WebSocket to the browser, and routing turns to the right RuntimeAdapter. The frontend is vanilla JS — no React, no build step, no node_modules.

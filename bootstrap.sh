@@ -67,8 +67,8 @@ create_venv() {
 
 install_deps() {
   local req
-  if [ -f "$ROOT/openclaw-vtuber/server/requirements.txt" ]; then
-    req="$ROOT/openclaw-vtuber/server/requirements.txt"
+  if [ -f "$ROOT/server/requirements.txt" ]; then
+    req="$ROOT/server/requirements.txt"
   elif [ -f "$ROOT/requirements.txt" ]; then
     req="$ROOT/requirements.txt"
   else

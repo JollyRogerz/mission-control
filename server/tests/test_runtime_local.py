@@ -135,11 +135,7 @@ def test_dispatch_e2e_via_http(monkeypatch, runner_script):
     `_cancel_all_tasks()` — which deadlocks because the in-flight subprocess
     `readline()` doesn't respond cleanly to cancellation. Sharing the portal
     keeps the loop alive between calls and avoids that teardown path.
-
-    VTUBER_ENABLED is forced false so the lifespan background tasks (which
-    `with TestClient(...)` triggers) don't attempt outbound connections.
     """
-    monkeypatch.setenv("VTUBER_ENABLED", "false")
     monkeypatch.delenv("GATEWAY_AUTH_TOKEN", raising=False)
     import bridge_server as bs
     from starlette.testclient import TestClient

@@ -131,8 +131,8 @@ async def test_appears_in_api(async_client, monkeypatch):
 
     We inject a DiscordIntegration instance directly into bridge_server.INTEGRATIONS
     (via sys.modules) so we avoid the sys.path package-name mismatch between the
-    test environment (server/ at root → "integrations") and the bridge's loader
-    (openclaw-vtuber/ at root → "server.integrations").
+    test environment (server/ on sys.path → "integrations") and the bridge's loader
+    (repo root on sys.path → "server.integrations").
     """
     from integrations.discord.client import DiscordIntegration
     import sys

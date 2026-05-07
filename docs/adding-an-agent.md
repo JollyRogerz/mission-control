@@ -11,7 +11,7 @@ Agents are defined as YAML files in `config/agents/`. Mission Control discovers 
 
 ## YAML schema
 
-The schema is defined by `AgentDefinition` in `openclaw-vtuber/server/adapters/agent_definition.py`.
+The schema is defined by `AgentDefinition` in `server/adapters/agent_definition.py`.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|

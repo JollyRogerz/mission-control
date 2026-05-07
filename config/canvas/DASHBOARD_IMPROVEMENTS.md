@@ -13,7 +13,7 @@ Telegram → Bridge Server (getUpdates polling) → Classifier → ONE agent via
 ```
 
 **Key Components:**
-- **Bridge Server** (`openclaw-vtuber/server/bridge_server.py`) — Python/FastAPI server on port 8100. Connects to OpenClaw Gateway WebSocket, handles Telegram messages, serves Mission Control dashboard, routes messages to agents.
+- **Bridge Server** (`server/bridge_server.py`) — Python/FastAPI server on port 8100. Connects to OpenClaw Gateway WebSocket, handles Telegram messages, serves Mission Control dashboard, routes messages to agents.
 - **Mission Control Desktop App** (`config/canvas/app.py`) — Python pywebview wrapper that auto-discovers auth tokens and opens the dashboard in a native window.
 - **Dashboard Frontend** (`config/canvas/index.html`, `terminal.js`, `terminal.css`, `sprites.css`, `grid.js`) — Pure vanilla JS SPA with pixel art sprites, real-time WebSocket event handling, and draggable panel layout.
 
@@ -64,7 +64,7 @@ Telegram → Bridge Server (getUpdates polling) → Classifier → ONE agent via
 
 | File | Purpose |
 |------|---------|
-| `openclaw-vtuber/server/bridge_server.py` | Bridge server — gateway connection, Telegram handling, API endpoints, event routing |
+| `server/bridge_server.py` | Bridge server — gateway connection, Telegram handling, API endpoints, event routing |
 | `config/canvas/index.html` | Dashboard HTML structure (6 panels + auth modal) |
 | `config/canvas/terminal.js` | Main dashboard JS (MissionControl class, ~1160 lines) |
 | `config/canvas/terminal.css` | All dashboard styling (~725 lines) |
@@ -141,7 +141,7 @@ Telegram → Bridge Server (getUpdates polling) → Classifier → ONE agent via
 
 ```bash
 # Start bridge server (handles gateway, Telegram, MC WebSocket)
-cd openclaw-vtuber/server
+cd server
 PYTHONUNBUFFERED=1 .venv/bin/python bridge_server.py > /tmp/bridge.log 2>&1 &
 
 # Start Mission Control desktop app

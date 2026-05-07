@@ -4,7 +4,7 @@
 Creates ``config/canvas/mission-control.db`` with the 10 mission-control tables.
 Idempotent: uses ``CREATE TABLE IF NOT EXISTS`` so re-running is safe.
 
-Schema is verbatim from ``openclaw-vtuber/server/bridge_server.py:_init_mc_db()``,
+Schema is verbatim from ``server/bridge_server.py:_init_mc_db()``,
 with the ALTER TABLE migration columns folded inline (this is a fresh-install
 script, not a migration tool — see Plan 05-04 BOOT-03 notes).
 """
@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DB_DIR = ROOT / "config" / "canvas"
 DB_PATH = DB_DIR / "mission-control.db"
 
-# Verbatim DDL extracted from openclaw-vtuber/server/bridge_server.py
+# Verbatim DDL extracted from server/bridge_server.py
 # (see _init_mc_db() — keep in sync if the bridge schema changes).
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS tasks (

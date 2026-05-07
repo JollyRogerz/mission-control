@@ -14,14 +14,13 @@ def fresh_bridge(monkeypatch):
 
 def test_defaults(monkeypatch, fresh_bridge):
     # Clear any leaked env from the test environment
-    for key in ("BRIDGE_HOST", "BRIDGE_PORT", "VTUBER_WS_URL",
+    for key in ("BRIDGE_HOST", "BRIDGE_PORT",
                 "DOCKER_BIN", "DOCKER_CONTAINER", "SESSIONS_DIR"):
         monkeypatch.delenv(key, raising=False)
     import bridge_server
     assert bridge_server.BRIDGE_HOST == "127.0.0.1"
     assert bridge_server.BRIDGE_PORT == 8100
     assert isinstance(bridge_server.BRIDGE_PORT, int)
-    assert bridge_server.VTUBER_WS_URL == "ws://127.0.0.1:12393/client-ws"
     assert bridge_server.DOCKER_BIN == "docker"
     assert bridge_server.DOCKER_CONTAINER == "openclaw-gateway"
     assert "openclaw-gateway" in bridge_server.SESSIONS_DIR
@@ -39,14 +38,12 @@ def test_linux_portability(monkeypatch, fresh_bridge):
 def test_overrides(monkeypatch, fresh_bridge):
     monkeypatch.setenv("BRIDGE_HOST", "0.0.0.0")
     monkeypatch.setenv("BRIDGE_PORT", "9999")
-    monkeypatch.setenv("VTUBER_WS_URL", "ws://example.com/ws")
     monkeypatch.setenv("DOCKER_BIN", "/usr/local/bin/docker")
     monkeypatch.setenv("DOCKER_CONTAINER", "my-gateway")
     monkeypatch.setenv("SESSIONS_DIR", "/var/sessions")
     import bridge_server
     assert bridge_server.BRIDGE_HOST == "0.0.0.0"
     assert bridge_server.BRIDGE_PORT == 9999
-    assert bridge_server.VTUBER_WS_URL == "ws://example.com/ws"
     assert bridge_server.DOCKER_BIN == "/usr/local/bin/docker"
     assert bridge_server.DOCKER_CONTAINER == "my-gateway"
     assert bridge_server.SESSIONS_DIR == "/var/sessions"

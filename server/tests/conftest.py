@@ -1,10 +1,10 @@
 """
-Pytest fixtures for the OpenClaw bridge server test suite.
+Pytest fixtures for the Mission Control bridge server test suite.
 
 Import layout:
-  bridge_server.py lives at openclaw-vtuber/server/bridge_server.py and is
-  run as a top-level script via `python bridge_server.py`.  We add the server/
-  directory to sys.path so tests can import it as a module.
+  bridge_server.py lives at server/bridge_server.py and is run as a top-level
+  script via `python bridge_server.py`.  We add the server/ directory to
+  sys.path so tests can import it as a module.
 """
 import sys
 from pathlib import Path

@@ -31,7 +31,7 @@ import webview
 APP_DIR = Path(__file__).resolve().parent          # config/canvas/
 CONFIG_DIR = APP_DIR.parent                         # config/
 OPENCLAW_JSON = CONFIG_DIR / "openclaw.json"
-BRIDGE_SERVER_DIR = APP_DIR.parent.parent / "openclaw-vtuber" / "server"
+BRIDGE_SERVER_DIR = APP_DIR.parent.parent / "server"
 
 # ---------------------------------------------------------------------------
 # Logging

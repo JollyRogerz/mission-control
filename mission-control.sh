@@ -37,5 +37,5 @@ echo "[mc] starting FastAPI bridge on $URL"
   esac
 }) &
 
-cd "$ROOT/openclaw-vtuber/server"
+cd "$ROOT/server"
 exec python bridge_server.py

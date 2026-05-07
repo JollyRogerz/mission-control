@@ -3,7 +3,7 @@
 An integration sends messages from Mission Control to an external surface — Discord, Telegram, Slack, your own dashboard. Add one by writing a single Python module that satisfies the `Integration` Protocol.
 
 ## The Protocol
-Source: `openclaw-vtuber/server/adapters/integration.py`
+Source: `server/adapters/integration.py`
 ```python
 from typing import Protocol, runtime_checkable
 
@@ -22,14 +22,14 @@ Three requirements:
 Send-only: the v1 Protocol does NOT define inbound webhooks — receiving messages is out of scope.
 
 ## Where it lives
-- Source: `openclaw-vtuber/server/integrations/<name>.py`
+- Source: `server/integrations/<name>.py`
 - Loader scans this directory, imports each module, and verifies its module-level `INTEGRATION` satisfies the Protocol via `isinstance(INTEGRATION, Integration)`
 - File basename = the registered integration name
 
 ## Step-by-step
 
 ### 1. Create the module
-`openclaw-vtuber/server/integrations/slack.py`:
+`server/integrations/slack.py`:
 ```python
 """Slack integration — example template."""
 from __future__ import annotations
