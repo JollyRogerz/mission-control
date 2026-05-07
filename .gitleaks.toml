@@ -1,55 +1,27 @@
-# OpenClaw Sandbox — gitleaks configuration
+# Mission Control — gitleaks configuration
 #
 # Purpose: make `gitleaks detect --no-git --source .` honor the project's
 # .gitignore semantics (gitleaks does NOT honor .gitignore in --no-git mode).
-# Without this, working-tree scans walk runtime caches, sandbox dependencies,
-# planning artifacts, and nested git repos producing thousands of false-positive
-# findings.
-#
-# Decision reversal: Plan 05-03 chose "no .gitleaks.toml" reasoning the action
-# default ruleset was sufficient. Plan 05-10 reverses that decision because
-# --no-git working-tree mode (used in HARDEN-06 SC-2) requires explicit path
-# allowlisting that gitignore-aware modes (the default `gitleaks detect` git
-# history mode and the pre-commit `gitleaks protect --staged` mode) do not.
+# Without this, working-tree scans walk runtime caches and generated content
+# producing false-positive findings.
 #
 # Maintenance rules:
-#   - `[allowlist] paths` ONLY excludes sandbox/planning/dep paths that mirror
+#   - `[allowlist] paths` ONLY excludes runtime/generated paths that mirror
 #     .gitignore semantics. Add new paths here whenever you add to .gitignore.
 #   - `[allowlist.regexes]` and `[allowlist.commits]` entries require a
-#     one-line justification comment per entry. Drift here = real leaks slip
-#     through silently.
+#     one-line justification comment per entry.
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Mirror .gitignore exclusions + planning-doc sample secrets"
+description = "Mirror .gitignore exclusions"
 paths = [
-  # Planning artifacts: tracked design notes that intentionally embed redacted
-  # sample secrets and PII identifiers for audit traceability. Triaged in 05-10
-  # Task 3; if any future planning file embeds a NEW real-shaped secret, redact
-  # at source rather than expand this allowlist.
-  '''^\.planning/.*''',
-
   # Local-only / generated content (mirror .gitignore)
   '''^\.codex-trash/.*''',
   '''^\.firecrawl/.*''',
   '''^\.claude/.*''',
-  '''^\.security-suite/.*''',
   '''^\.vscode/.*''',
-
-  # Mounted sibling repos (already excluded from git; gitleaks --no-git still walks)
-  '''^horizon/.*''',
-  '''^horizon-contracts/.*''',
-  '''^horizon-docs/.*''',
-  '''^horizon-docs-public/.*''',
-  '''^horizon-miniapp/.*''',
-  '''^horizon-sdk/.*''',
-  '''^horizon-website/.*''',
-  '''^horizon-website-experimental-design/.*''',
-
-  # Nested git repos
-  '''^openclaw-vtuber/Open-LLM-VTuber/.*''',
 
   # Runtime / generated content
   '''^node_modules/.*''',
@@ -67,36 +39,14 @@ paths = [
   '''^config/settings/.*''',
   '''^config/workspace.*''',
   '''^config/canvas/dist/.*''',
-  '''^config/agents/horizon-.*''',
-  '''^config/agents/main/.*''',
 
-  # Phase 5 HARDEN-06 additions: runtime caches/identity that produce false-positive
-  # gitleaks hits when the working-tree scan walks them.
+  # Per-install runtime caches/identity
   '''^config/plugin-runtime-deps/.*''',
   '''^config/bridge-device-identity\.json$''',
   '''^config/identity/.*''',
 
-  # Plan 05-13 additions (mirror .gitignore):
-  # _outdated/ holds historical agent training docs containing example tokens; never ships.
-  # Canvas mission-control.json is per-install runtime config; bootstrap regenerates from .example.
-  '''^_outdated/.*''',
+  # Per-install runtime config; bootstrap regenerates from .example.
   '''^config/canvas/mission-control\.json$''',
-
-  # .gitignore-excluded local config containing live secrets (never tracked, never shipped)
-  '''^config/openclaw\.json$''',
-  '''^config/openclaw\.json\..*''',
-  '''^config/exec-approvals\.json$''',
-  '''^config/devices/paired\.json$''',
-  '''^config/devices/pending\.json$''',
-  '''^config/openclaw_deploy_key$''',
-  '''^config/openclaw_deploy_key\.pub$''',
-  '''^config/security-suite\.json$''',
-  '''^config/ssh_config$''',
-  '''^config/gitconfig$''',
-  '''^config/git-credential-github-app\.sh$''',
-  '''^config/github-token-helper\.sh$''',
-  '''^config/refresh-git-tokens\.sh$''',
-  '''^config/setup-git-auth\.sh$''',
 
   # Backups, sqlite sidecars, env overrides, pem keys
   '''.*\.bak.*''',

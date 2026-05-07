@@ -78,10 +78,10 @@ async def test_complete_happy_path(monkeypatch, http_mock):
 def test_loader_discovers(monkeypatch):
     """_scan('providers') includes 'anthropic' when ANTHROPIC_API_KEY is set.
 
-    Note: during test runs, conftest.py inserts openclaw-vtuber/server/ into
-    sys.path directly, so the importable package is 'providers' (not
-    'server.providers' which is only resolvable when bridge_server.py is the
-    entry point).  This test uses the same path the scanner would see.
+    Note: during test runs, conftest.py inserts server/ into sys.path directly,
+    so the importable package is 'providers' (not 'server.providers' which is
+    only resolvable when bridge_server.py is the entry point).  This test uses
+    the same path the scanner would see.
     """
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
 

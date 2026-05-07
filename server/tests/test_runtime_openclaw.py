@@ -5,9 +5,9 @@ The fake_turn_gateway fixture starts an in-process WebSocket server that
 speaks the turn wire protocol (accept one frame, stream N events, send done).
 
 Import notes:
-- conftest.py inserts openclaw-vtuber/server/ into sys.path so packages
-  like ``runtime``, ``adapters``, ``providers`` resolve without a ``server.``
-  prefix.  Use ``runtime.openclaw`` (not ``server.runtime.openclaw``).
+- conftest.py inserts server/ into sys.path so packages like ``runtime``,
+  ``adapters``, ``providers`` resolve without a ``server.`` prefix.
+  Use ``runtime.openclaw`` (not ``server.runtime.openclaw``).
 - The module-level RUNTIMES dict in adapters.loader is populated at import
   time with _scan("server.runtime", ...) which does NOT resolve from the test
   runner's sys.path.  For the loader-discover test we call _scan("runtime", ...)

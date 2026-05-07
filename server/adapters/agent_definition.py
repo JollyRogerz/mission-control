@@ -31,11 +31,10 @@ _FILE_PREFIX = "@file:"
 # Path(__file__) → server/adapters/agent_definition.py
 # .parent        → server/adapters/
 # .parent        → server/
-# .parent        → openclaw-vtuber/
 # .parent        → <repo-root>/
 # / "config" / "agents" → <repo-root>/config/agents
 _DEFAULT_AGENTS_DIR = (
-    Path(__file__).parent.parent.parent.parent / "config" / "agents"
+    Path(__file__).parent.parent.parent / "config" / "agents"
 )
 
 

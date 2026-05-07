@@ -84,9 +84,6 @@ config/CLAUDE.md.bak
 config/CLAUDE.md.tmp
 docker-compose.yml.bak
 
-# --- Nested git repos ---
-openclaw-vtuber/Open-LLM-VTuber/
-
 # --- Security suite runtime ---
 .security-suite/
 
@@ -118,7 +115,8 @@ config/bridge-device-identity.json
 # Plan 05-13: local archives + per-install dev configs
 # _outdated/ holds historical agent training docs containing example tokens; never ships
 _outdated/
-# Canvas dashboard runtime config; bootstrap regenerates from .example with per-install token
+# Per-install runtime configs; bootstrap regenerates from .example with per-install token
+config/mission-control.json
 config/canvas/mission-control.json
 
 # Python

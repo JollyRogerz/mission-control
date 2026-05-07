@@ -8,7 +8,7 @@
 # Exit 2: config/canvas directory not found
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CANVAS="$ROOT/config/canvas"
 
 [ -d "$CANVAS" ] || { echo "no config/canvas dir found at $CANVAS" >&2; exit 2; }

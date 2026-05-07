@@ -1,29 +1,20 @@
 """
-OpenClaw <-> Open-LLM-VTuber Bridge Server (v3.0.0)
+Mission Control Bridge Server (v3.0.0)
 
-Connects directly to the OpenClaw Gateway WebSocket to observe agent events
-and forwards avatar commands to the Open-LLM-VTuber backend.
+FastAPI bridge between the Mission Control dashboard and the OpenClaw Gateway.
 
 Architecture:
-  Gateway (ws://127.0.0.1:18789) --> Bridge Server --> VTuber (ws://127.0.0.1:12393/client-ws)
+  Gateway (ws://127.0.0.1:18789) --> Bridge Server --> Dashboard (HTTP/WS)
 
-The bridge translates OpenClaw Gateway events (agent, chat, health, etc.)
-into TelemetryPayload objects, which the AvatarMapper converts into Live2D
-expression/motion commands for the VTuber frontend.
-
-Two VTuber communication modes:
-  1. Direct expression control -- instant Live2D expression/motion changes
-     via "broadcast-expression" messages (silent WAV + expression index).
-  2. Direct speech -- sends "broadcast-speech" messages with the bot's
-     Telegram responses. The VTuber generates TTS audio + lip sync and
-     broadcasts to all connected frontends. No LLM involved.
+Connects directly to the OpenClaw Gateway WebSocket to observe agent events
+and forwards them to connected dashboard clients. Handles adapter scanning
+(providers, integrations, runtimes), turn streams, and integration send routes.
 
 Security:
   - Binds to 127.0.0.1 only (not exposed to network)
   - Token-based auth on WebSocket endpoints (set BRIDGE_AUTH_TOKEN env var)
   - Gateway auth uses the token from openclaw.json
   - CORS restricted to localhost origins
-  - Speech text sanitized before forwarding to TTS
 
 Run:  python bridge_server.py
 """
@@ -51,8 +42,6 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from telemetry_schema import TelemetryPayload, AgentState, ToolType
-from avatar_mapper import AvatarMapper, AvatarCommand
 
 # ---------------------------------------------------------------------------
 # Config
@@ -60,9 +49,6 @@ from avatar_mapper import AvatarMapper, AvatarCommand
 # SECURITY: Bind to localhost only.
 BRIDGE_HOST   = os.environ.get("BRIDGE_HOST", "127.0.0.1")
 BRIDGE_PORT   = int(os.environ.get("BRIDGE_PORT", "8100"))
-VTUBER_WS_URL = os.environ.get("VTUBER_WS_URL", "ws://127.0.0.1:12393/client-ws")
-VTUBER_ENABLED = os.environ.get("VTUBER_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
-
 # --- ADAPT-06: adapter discovery singletons (Wave 5) -----------------------------
 from adapters import AgentDefinition, ModelProvider, Integration, RuntimeAdapter, _scan  # noqa: E402
 
@@ -103,7 +89,7 @@ if not GATEWAY_AUTH_TOKEN:
     # Fallback: read from openclaw.json -> gateway.auth.token
     _oc_config_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", "config", "openclaw.json",
+        "..", "config", "openclaw.json",
     )
     try:
         with open(_oc_config_path, "r") as _f:
@@ -120,7 +106,7 @@ BRIDGE_AUTH_TOKEN = os.environ.get("BRIDGE_AUTH_TOKEN", "")
 if not BRIDGE_AUTH_TOKEN:
     _mc_config_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", "config", "canvas", "mission-control.json",
+        "..", "config", "canvas", "mission-control.json",
     )
     try:
         with open(_mc_config_path, "r") as _f:
@@ -129,12 +115,8 @@ if not BRIDGE_AUTH_TOKEN:
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         pass
 
-# How often to push expression updates to the VTuber frontend (Hz)
-EXPRESSION_UPDATE_HZ = 5
 # Reconnect delay on connection loss
 RECONNECT_DELAY_SEC = 3.0
-# Max length for speech text sent to TTS
-MAX_SPEECH_LENGTH = 2000
 
 # Mission Control: Telegram chat relay
 # Priority: env var > sandbox .env file
@@ -142,7 +124,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 if not TELEGRAM_BOT_TOKEN:
     _sandbox_env = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", ".env",
+        "..", ".env",
     )
     try:
         with open(_sandbox_env, "r") as _f:
@@ -157,7 +139,7 @@ TELEGRAM_DEFAULT_CHAT_ID = os.environ.get("TELEGRAM_DEFAULT_CHAT_ID")  # no defa
 
 # Mission Control: Dashboard static files (canvas directory)
 _BRIDGE_DIR = os.path.dirname(os.path.abspath(__file__))
-DASHBOARD_DIR = os.path.join(_BRIDGE_DIR, "..", "..", "config", "canvas")
+DASHBOARD_DIR = os.path.join(_BRIDGE_DIR, "..", "config", "canvas")
 
 # Mission Control: event buffer for dashboard clients
 _mission_control_clients: set[WebSocket] = set()
@@ -185,55 +167,15 @@ logging.basicConfig(
 log = logging.getLogger("openclaw-bridge")
 
 # ---------------------------------------------------------------------------
-# Expression name -> index mapping for the default mao_pro model.
-#
-# mao_pro has 8 expression files (exp_01 through exp_08, indices 0-7):
-#   0 = exp_01: Eyes open (neutral, alert)
-#   1 = exp_02: Eyes smiling (content, sleepy)
-#   2 = exp_03: Default/blank (neutral reset)
-#   3 = exp_04: Eyes wide + sparkle + smile (joy, excited, victory)
-#   4 = exp_05: Frown + mouth down (sad, fear)
-#   5 = exp_06: Cheek puff + frown (annoyed, disgusted)
-#   6 = exp_07: Wide eyes + frown (surprised, shocked)
-#   7 = exp_08: Angry mouth (anger, rage)
-# ---------------------------------------------------------------------------
-EXPRESSION_INDEX = {
-    "neutral": 2,
-    "sadness": 4,
-    "fear": 4,
-    "anger": 7,
-    "disgust": 5,
-    "joy": 3,
-    "happy": 3,
-    "smirk": 1,
-    "surprise": 6,
-    "surprised": 6,
-    "excited": 3,
-    # Custom aliases used by avatar_mapper
-    "focused": 0,
-    "sleepy": 1,
-    "panicked": 6,
-    "victory": 3,
-    "bored": 1,
-}
-
-# ---------------------------------------------------------------------------
 # Shared state
 # ---------------------------------------------------------------------------
-latest_telemetry: Optional[TelemetryPayload] = None
-latest_avatar_cmd: Optional[AvatarCommand] = None
-mapper = AvatarMapper()
 connected_robots: set[WebSocket] = set()
-vtuber_ws: Optional[websockets.WebSocketClientProtocol] = None
 gateway_ws: Optional[websockets.WebSocketClientProtocol] = None
 gateway_connected: bool = False
 # Separate WebSocket for chat.send (webchat mode)
 chat_ws: Optional[websockets.WebSocketClientProtocol] = None
 chat_ws_connected: bool = False
 _chat_ws_pending: dict = {}  # id -> asyncio.Future for RPC responses
-_vtuber_listener_task: Optional[asyncio.Task] = None
-# Queue for chat-out messages that the avatar should speak
-_speech_queue: asyncio.Queue = None  # initialized in lifespan
 # Track the latest assistant streaming text per runId
 _assistant_stream_text: dict = {}  # runId -> latest full text
 
@@ -386,19 +328,6 @@ def _check_ws_token(token: Optional[str]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Text sanitization
-# ---------------------------------------------------------------------------
-def _sanitize_text(text: str, max_length: int = MAX_SPEECH_LENGTH) -> str:
-    """
-    Sanitize text before forwarding to VTuber.
-    Strips control characters and limits length.
-    """
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
-    text = text[:max_length]
-    return text
-
-
-# ---------------------------------------------------------------------------
 # OpenClaw Gateway WebSocket connection
 # ---------------------------------------------------------------------------
 async def connect_to_gateway() -> bool:
@@ -447,7 +376,7 @@ async def connect_to_gateway() -> bool:
                 "maxProtocol": 3,
                 "client": {
                     "id": "gateway-client",
-                    "displayName": "VTuber Bridge",
+                    "displayName": "Mission Control Bridge",
                     "version": "3.0.0",
                     "platform": "macos",
                     "mode": "backend",
@@ -495,7 +424,7 @@ def _load_device_identity() -> dict:
     """Load device identity (Ed25519 keys) and device-auth token for chat WS."""
     _id_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", "config", "identity",
+        "..", "config", "identity",
     )
     result = {"token": "", "deviceId": "", "privateKey": None, "publicKeyPem": ""}
 
@@ -1161,192 +1090,14 @@ async def _forward_response_to_telegram(text: str, agent_id: Optional[str] = Non
         log.warning(f"Failed to forward response to Telegram: {e}")
 
 
-def _classify_tool(tool_name: str) -> ToolType:
-    """Map a tool name from Gateway events to our ToolType enum."""
-    name = (tool_name or "").lower()
-    if name in ("bash", "shell", "terminal", "exec"):
-        return ToolType.BASH
-    elif name in ("browser", "puppeteer", "playwright", "web"):
-        return ToolType.BROWSER
-    elif name in ("read", "write", "edit", "glob", "grep", "file"):
-        return ToolType.FILE
-    elif name in ("code", "code_edit", "code_write", "patch"):
-        return ToolType.CODE
-    elif name in ("search", "web_search", "websearch"):
-        return ToolType.SEARCH
-    elif name in ("api", "http", "fetch", "curl"):
-        return ToolType.API
-    elif name:
-        return ToolType.OTHER
-    return ToolType.NONE
-
-
-def _gateway_event_to_telemetry(event_type: str, payload: dict) -> Optional[TelemetryPayload]:
-    """
-    Convert a Gateway event into a TelemetryPayload for the avatar mapper.
-
-    Gateway event types we handle:
-      - agent: Agent lifecycle (thinking, tool_call, done, error, etc.)
-      - chat: Chat messages (user input, assistant output)
-      - health: Periodic health checks
-      - heartbeat: Heartbeat events (agent coming alive)
-    """
-    now = datetime.utcnow()
-
-    if event_type == "agent":
-        # Agent events contain action details
-        action = payload.get("action", "")
-        agent_id = payload.get("agentId", "openclaw-horizon")
-
-        if action in ("thinking", "llm.start", "llm.generate"):
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.THINKING,
-                activity_level=60.0,
-                llm_model=payload.get("model"),
-            )
-        elif action in ("tool.start", "tool.call", "tool_call"):
-            tool_name = payload.get("tool", payload.get("name", ""))
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.TOOL_RUNNING,
-                tool_type=_classify_tool(tool_name),
-                tool_name=tool_name or None,
-                activity_level=80.0,
-            )
-        elif action in ("tool.end", "tool.result", "tool_result"):
-            tool_name = payload.get("tool", payload.get("name", ""))
-            success = payload.get("success", payload.get("ok", True))
-            if not success or payload.get("error"):
-                return TelemetryPayload(
-                    timestamp=now,
-                    agent_id=agent_id,
-                    state=AgentState.ERROR,
-                    tool_type=_classify_tool(tool_name),
-                    tool_name=tool_name or None,
-                    tool_success=False,
-                    error_message=str(payload.get("error", "Tool failed"))[:200],
-                    activity_level=50.0,
-                )
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.TOOL_RUNNING,
-                tool_type=_classify_tool(tool_name),
-                tool_name=tool_name or None,
-                tool_success=True,
-                activity_level=70.0,
-            )
-        elif action in ("done", "complete", "finished", "idle"):
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.IDLE,
-                activity_level=5.0,
-            )
-        elif action in ("error", "fail", "failed"):
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.ERROR,
-                error_message=str(payload.get("error", payload.get("message", "Unknown error")))[:200],
-                activity_level=40.0,
-            )
-        elif action in ("start", "session.start"):
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.STARTING,
-                activity_level=30.0,
-            )
-        elif action in ("stop", "session.end"):
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.STOPPING,
-                activity_level=10.0,
-            )
-        else:
-            # Unknown agent action -- treat as activity
-            log.debug(f"Unknown agent action: {action}")
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=agent_id,
-                state=AgentState.THINKING,
-                activity_level=50.0,
-                custom={"raw_action": action},
-            )
-
-    elif event_type == "chat":
-        # Chat events: user input or assistant output
-        direction = payload.get("direction", payload.get("role", ""))
-        text = payload.get("text", payload.get("content", ""))
-
-        if direction in ("in", "user", "incoming"):
-            # User sent a message -- agent will start thinking
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=payload.get("agentId", "openclaw-horizon"),
-                state=AgentState.THINKING,
-                activity_level=40.0,
-                custom={"chat_direction": "in"},
-            )
-        elif direction in ("out", "assistant", "outgoing"):
-            # Agent is responding -- capture the text so the avatar can speak it
-            if text and _speech_queue is not None:
-                try:
-                    _speech_queue.put_nowait(text)
-                    log.info(f"Chat-out queued for speech: '{text[:80]}'")
-                except asyncio.QueueFull:
-                    log.warning("Speech queue full, dropping oldest message")
-                    try:
-                        _speech_queue.get_nowait()
-                        _speech_queue.put_nowait(text)
-                    except asyncio.QueueEmpty:
-                        pass
-            return TelemetryPayload(
-                timestamp=now,
-                agent_id=payload.get("agentId", "openclaw-horizon"),
-                state=AgentState.SPEAKING,
-                activity_level=50.0,
-                custom={"chat_direction": "out", "chat_text": text},
-            )
-
-    elif event_type == "heartbeat":
-        # Agent heartbeat -- show it's alive
-        return TelemetryPayload(
-            timestamp=now,
-            agent_id=payload.get("agentId", "openclaw-horizon"),
-            state=AgentState.IDLE,
-            activity_level=10.0,
-        )
-
-    elif event_type == "health":
-        # Health check -- just confirm we're alive, don't change expression
-        if not payload.get("ok", True):
-            return TelemetryPayload(
-                timestamp=now,
-                state=AgentState.ERROR,
-                error_message="Health check failed",
-                activity_level=20.0,
-            )
-        # Don't generate telemetry for routine health checks
-        return None
-
-    return None
-
-
 async def gateway_event_loop():
     """
-    Listen to Gateway events and convert them to telemetry for the avatar.
+    Listen to Gateway events and forward them to dashboard clients.
 
     This runs as a background task and handles reconnection automatically.
-    It replaces the need for an in-container extension -- the bridge server
-    connects directly to the Gateway WebSocket from the host.
+    It connects directly to the Gateway WebSocket from the host.
     """
-    global gateway_ws, gateway_connected, latest_telemetry, latest_avatar_cmd
+    global gateway_ws, gateway_connected
 
     while True:
         # Connect if not connected
@@ -1358,16 +1109,7 @@ async def gateway_event_loop():
                 await asyncio.sleep(RECONNECT_DELAY_SEC)
                 continue
 
-            # Send initial "starting" telemetry on first connect
-            telemetry = TelemetryPayload(
-                timestamp=datetime.utcnow(),
-                agent_id="openclaw-horizon",
-                state=AgentState.STARTING,
-                activity_level=30.0,
-            )
-            latest_telemetry = telemetry
-            latest_avatar_cmd = mapper.map(telemetry)
-            log.info("Gateway listener active -- avatar should animate now!")
+            log.info("Gateway listener active.")
 
         # Listen for events
         try:
@@ -1497,27 +1239,6 @@ async def gateway_event_loop():
                                 final_text = _assistant_stream_text.pop(run_id, "")
 
                                 if final_text:
-                                    # Queue for VTuber speech
-                                    if _speech_queue is not None:
-                                        # Strip markdown formatting for TTS
-                                        clean = re.sub(r'\*+', '', final_text)  # bold/italic
-                                        clean = re.sub(r'#+\s*', '', clean)     # headers
-                                        clean = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean)  # links
-                                        # Strip bot technical footers
-                                        clean = re.sub(r'(?m)^node\s+skills/.*$', '', clean)
-                                        clean = re.sub(r'📊\s*Model\s*\(effective\):.*$', '', clean, flags=re.MULTILINE)
-                                        clean = clean.strip()
-                                        if clean:
-                                            try:
-                                                _speech_queue.put_nowait(clean)
-                                                log.info(f"Response queued for speech ({len(clean)} chars): '{clean[:80]}'")
-                                            except asyncio.QueueFull:
-                                                try:
-                                                    _speech_queue.get_nowait()
-                                                    _speech_queue.put_nowait(clean)
-                                                except asyncio.QueueEmpty:
-                                                    pass
-
                                     # Forward response to Telegram if this run was tracked
                                     session_key = payload.get("sessionKey", "")
                                     resp_agent_id = _resolve_agent_from_session_key(session_key)
@@ -1636,16 +1357,6 @@ async def gateway_event_loop():
                             action = payload.get("action", "")
                             log.info(f"Gateway [{event_type}] stream={stream_type} action={action} keys={list(payload.keys())} data_keys={list((payload.get('data') or {}).keys())}")
 
-                        telemetry = _gateway_event_to_telemetry(event_type, payload)
-                        if telemetry:
-                            latest_telemetry = telemetry
-                            latest_avatar_cmd = mapper.map(telemetry)
-                            log.info(
-                                f"Gateway [{event_type}] -> "
-                                f"state={telemetry.state.value}, "
-                                f"expr={latest_avatar_cmd.expression if latest_avatar_cmd else '?'}"
-                            )
-
                         # Forward raw event to mission control dashboard clients
                         if event_type != "tick":
                             mc_event = {
@@ -1682,260 +1393,8 @@ async def gateway_event_loop():
         gateway_ws = None
         gateway_connected = False
 
-        # Set avatar to idle on disconnect
-        telemetry = TelemetryPayload(
-            timestamp=datetime.utcnow(),
-            agent_id="openclaw-horizon",
-            state=AgentState.IDLE,
-            activity_level=0.0,
-        )
-        latest_telemetry = telemetry
-        latest_avatar_cmd = mapper.map(telemetry)
-
         log.info(f"Gateway reconnect in {RECONNECT_DELAY_SEC}s...")
         await asyncio.sleep(RECONNECT_DELAY_SEC)
-
-
-# ---------------------------------------------------------------------------
-# VTuber connection manager
-# ---------------------------------------------------------------------------
-async def connect_to_vtuber() -> Optional[websockets.WebSocketClientProtocol]:
-    """Connect to the Open-LLM-VTuber backend WebSocket."""
-    if not VTUBER_ENABLED:
-        return None  # Defensive — lifespan should not have called us when disabled
-    global vtuber_ws, _vtuber_listener_task
-    try:
-        vtuber_ws = await websockets.connect(VTUBER_WS_URL)
-        log.info(f"Connected to Open-LLM-VTuber at {VTUBER_WS_URL}")
-
-        if _vtuber_listener_task is not None:
-            _vtuber_listener_task.cancel()
-        _vtuber_listener_task = asyncio.create_task(_vtuber_listener())
-
-        return vtuber_ws
-    except Exception as e:
-        log.warning(f"Could not connect to VTuber backend: {e}")
-        log.warning("Is Open-LLM-VTuber running? Will retry...")
-        return None
-
-
-async def _vtuber_listener():
-    """Drain messages from the VTuber backend so the connection stays healthy."""
-    global vtuber_ws
-    try:
-        async for msg in vtuber_ws:
-            try:
-                data = json.loads(msg)
-                msg_type = data.get("type", "")
-                if msg_type == "full-text":
-                    log.info(f"VTuber AI said: {data.get('text', '')[:100]}")
-                elif msg_type == "error":
-                    log.error(f"VTuber error: {data.get('text', '')}")
-            except (json.JSONDecodeError, AttributeError):
-                pass
-    except websockets.exceptions.ConnectionClosed:
-        log.warning("VTuber connection closed (listener)")
-        vtuber_ws = None
-    except Exception as e:
-        log.warning(f"VTuber listener error: {e}")
-        vtuber_ws = None
-
-
-def _has_vtuber_connection() -> bool:
-    """Non-blocking check for an active VTuber connection."""
-    return vtuber_ws is not None
-
-
-# ---------------------------------------------------------------------------
-# Send commands to VTuber
-# ---------------------------------------------------------------------------
-# Minimal ~1ms silent WAV (24 samples at 24kHz, 16-bit PCM).
-# The Electron frontend skips expression changes when audio is null/empty
-# because Live2D expression application lives inside `if(audioBase64)`.
-# This tiny silent WAV triggers the code path without audible sound.
-_SILENT_WAV_B64 = (
-    "UklGRlQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YTAA"
-    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-    "AAAAAAAAA="
-)
-
-
-async def send_expression(cmd: AvatarCommand):
-    """
-    Send a direct expression change to ALL VTuber frontends.
-
-    Uses "broadcast-expression" message type -- the VTuber backend's patched
-    handler broadcasts this as an "audio" message to ALL connected clients
-    (browser, Electron app, etc.), not just the sender's connection.
-
-    Includes a tiny silent WAV so the Electron frontend's Live2D expression
-    code path is triggered (it requires non-empty audio to process expressions).
-    """
-    global vtuber_ws
-    if not _has_vtuber_connection():
-        return
-
-    expr_name = cmd.expression or "neutral"
-    expr_index = EXPRESSION_INDEX.get(expr_name, 0)
-
-    payload = {
-        "type": "broadcast-expression",
-        "audio": _SILENT_WAV_B64,
-        "volumes": [0.0],
-        "slice_length": 20,
-        "display_text": None,
-        "actions": {
-            "expressions": [expr_index],
-        },
-        "forwarded": False,
-    }
-
-    try:
-        await vtuber_ws.send(json.dumps(payload))
-        log.info(f"Expression sent: {expr_name} (index={expr_index}), overlay={cmd.text_overlay or 'none'}")
-    except websockets.exceptions.ConnectionClosed:
-        log.warning("VTuber connection lost during expression send")
-        vtuber_ws = None
-
-
-# NOTE: send_narration() removed — the VTuber is a pure visual/audio layer.
-# The avatar speaks the EXACT text from Horizon's Telegram responses via
-# send_speech() -> broadcast-speech -> TTS. No LLM re-interpretation needed.
-
-
-async def send_speech(text: str, expression: str = "happy"):
-    """
-    Send a broadcast-speech message to the VTuber backend.
-
-    Sends text directly to TTS — the avatar speaks the exact text from
-    the bot's Telegram response with lip sync and matching expression.
-    No LLM involved.
-    """
-    global vtuber_ws
-    if not _has_vtuber_connection():
-        return
-
-    # SECURITY: Sanitize text (strip control chars, limit length)
-    text = _sanitize_text(text)
-    if not text.strip():
-        return
-
-    expr_index = EXPRESSION_INDEX.get(expression, EXPRESSION_INDEX.get("happy", 3))
-
-    payload = {
-        "type": "broadcast-speech",
-        "text": text,
-        "expression": expr_index,
-        "display_text": {
-            "text": text,
-            "name": "Horizon",
-            "avatar": None,
-        },
-    }
-
-    try:
-        await vtuber_ws.send(json.dumps(payload))
-        log.info(f"Speech sent: '{text[:80]}' (expr={expression}/{expr_index})")
-    except websockets.exceptions.ConnectionClosed:
-        log.warning("VTuber connection lost during speech send")
-        vtuber_ws = None
-
-
-# ---------------------------------------------------------------------------
-# Background tasks
-# ---------------------------------------------------------------------------
-async def expression_update_loop():
-    """
-    Push the latest expression to the VTuber frontend.
-
-    Live2D only re-triggers animation when the expression index *changes*.
-    For long-duration states like "thinking", we alternate between the main
-    expression and a brief neutral reset so the avatar looks alive.
-    """
-    interval = 1.0 / EXPRESSION_UPDATE_HZ
-    last_sent_key = None
-    last_sent_time = 0.0
-    # How often (seconds) to resend the same expression via a neutral "blink"
-    REFRESH_INTERVAL = 4.0
-
-    while True:
-        await asyncio.sleep(interval)
-        cmd = latest_avatar_cmd
-        if cmd is None:
-            continue
-
-        now = asyncio.get_event_loop().time()
-        current_key = (cmd.expression, cmd.motion, cmd.text_overlay)
-
-        if current_key != last_sent_key:
-            # Expression changed — send immediately
-            await send_expression(cmd)
-            last_sent_key = current_key
-            last_sent_time = now
-        elif now - last_sent_time >= REFRESH_INTERVAL:
-            # Same expression for a while — do a brief neutral "blink" then
-            # re-send the current expression so the Live2D model transitions.
-            blink = AvatarCommand(expression="neutral")
-            await send_expression(blink)
-            await asyncio.sleep(0.6)  # Let the transition play (FadeInTime=0.5)
-            await send_expression(cmd)
-            last_sent_time = now
-
-
-# NOTE: narration_loop() removed — no more LLM narration.
-# The avatar is a pure visual/audio mirror of the Horizon bot.
-# Speech comes only from chat-out events (Telegram responses)
-# via speech_loop() -> send_speech() -> broadcast-speech -> TTS.
-
-
-async def speech_loop():
-    """
-    Process the speech queue: send bot responses to the VTuber for TTS.
-
-    When a chat-out event arrives from the Gateway (the bot's response to a
-    Telegram message), it gets queued. This loop picks it up and sends it
-    to the VTuber backend via broadcast-speech, which generates TTS audio
-    and broadcasts it to all connected frontends (Electron app).
-
-    The avatar speaks the response with lip sync and matching expressions.
-    """
-    while True:
-        try:
-            text = await _speech_queue.get()
-            if not text or not text.strip():
-                continue
-
-            log.info(f"Speech loop processing: '{text[:80]}'")
-
-            # Pick expression based on content hints
-            expression = "happy"  # default for responses
-            text_lower = text.lower()
-            if any(w in text_lower for w in ("error", "sorry", "fail", "wrong", "issue")):
-                expression = "surprised"
-            elif any(w in text_lower for w in ("great", "awesome", "excellent", "done", "success")):
-                expression = "victory"
-            elif any(w in text_lower for w in ("think", "hmm", "let me", "checking", "looking")):
-                expression = "focused"
-            elif any(w in text_lower for w in ("hello", "hi", "hey", "greet")):
-                expression = "excited"
-
-            await send_speech(text, expression=expression)
-
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            log.error(f"Speech loop error: {e}")
-            await asyncio.sleep(1.0)
-
-
-async def vtuber_reconnect_loop():
-    """Periodically try to reconnect to the VTuber backend if disconnected."""
-    if not VTUBER_ENABLED:
-        return  # Defensive — lifespan should not have spawned us when disabled
-    while True:
-        await asyncio.sleep(RECONNECT_DELAY_SEC)
-        if vtuber_ws is None:
-            await connect_to_vtuber()
 
 
 # ---------------------------------------------------------------------------
@@ -2319,7 +1778,7 @@ async def telegram_polling_loop():
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global BRIDGE_AUTH_TOKEN, _speech_queue
+    global BRIDGE_AUTH_TOKEN
 
     # Generate a token if none is set
     if not BRIDGE_AUTH_TOKEN:
@@ -2339,19 +1798,9 @@ async def lifespan(app: FastAPI):
         log.error("Find it in openclaw.json -> gateway.auth.token")
         log.error("=" * 60)
 
-    # Initialize speech queue (max 20 pending messages)
-    _speech_queue = asyncio.Queue(maxsize=20)
-
-    if VTUBER_ENABLED:
-        await connect_to_vtuber()
-    else:
-        log.info("VTuber integration disabled (set VTUBER_ENABLED=true to enable)")
     tasks = [
         asyncio.create_task(gateway_event_loop()),       # Listen to Gateway events
         asyncio.create_task(chat_ws_listener()),          # Chat WebSocket (webchat mode)
-        asyncio.create_task(expression_update_loop()),    # Live2D expressions
-        asyncio.create_task(speech_loop()),               # Speak bot responses via TTS
-        asyncio.create_task(vtuber_reconnect_loop()),
         # NOTE: Telegram polling DISABLED here — gateway telegram is enabled in
         # openclaw.json and handles getUpdates natively.  Bridge only relays
         # outbound messages (user chat → TG sendMessage / sendPhoto).
@@ -2360,8 +1809,6 @@ async def lifespan(app: FastAPI):
     yield
     for t in tasks:
         t.cancel()
-    if vtuber_ws:
-        await vtuber_ws.close()
     if gateway_ws:
         await gateway_ws.close()
     if chat_ws:
@@ -2370,7 +1817,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="OpenClaw VTuber Bridge",
+    title="Mission Control Bridge",
     version="3.0.0",
     lifespan=lifespan,
 )
@@ -2392,92 +1839,13 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {
-        "service": "openclaw-vtuber-bridge",
+        "service": "mission-control-bridge",
         "version": "3.0.0",
         "status": "running",
         "gateway_connected": gateway_connected,
-        "vtuber_connected": vtuber_ws is not None,
         "connected_robots": len(connected_robots),
-        "latest_state": latest_telemetry.state.value if latest_telemetry else None,
     }
 
-
-@app.get("/telemetry")
-async def get_telemetry():
-    """Get the latest telemetry snapshot."""
-    if latest_telemetry is None:
-        return {"message": "No telemetry received yet"}
-    return latest_telemetry.model_dump()
-
-
-@app.get("/avatar")
-async def get_avatar_cmd():
-    """Get the latest avatar command."""
-    if latest_avatar_cmd is None:
-        return {"message": "No avatar commands generated yet"}
-    return latest_avatar_cmd.to_dict()
-
-
-@app.get("/expressions")
-async def get_expression_map():
-    """Get the expression name -> index mapping."""
-    return EXPRESSION_INDEX
-
-
-# ---------------------------------------------------------------------------
-# WebSocket: receive telemetry from OpenClaw (legacy -- kept for compat)
-# ---------------------------------------------------------------------------
-@app.websocket("/ws/telemetry")
-async def ws_telemetry(ws: WebSocket, token: Optional[str] = Query(None)):
-    """
-    Legacy: OpenClaw extension connects here to stream telemetry.
-    Now the bridge connects directly to the Gateway, so this is optional.
-    """
-    global latest_telemetry, latest_avatar_cmd
-
-    if not _check_ws_token(token):
-        log.warning(f"Rejected telemetry connection: invalid token from {ws.client}")
-        await ws.close(code=4003, reason="Invalid or missing auth token")
-        return
-
-    await ws.accept()
-    connected_robots.add(ws)
-    log.info(f"Robot connected ({len(connected_robots)} total)")
-
-    try:
-        while True:
-            raw = await ws.receive_text()
-            try:
-                data = json.loads(raw)
-                telemetry = TelemetryPayload(**data)
-                latest_telemetry = telemetry
-                latest_avatar_cmd = mapper.map(telemetry)
-
-                # Check if the extension sent a chat-out message with text
-                # The extension puts the bot's response in custom.chat_text
-                custom = data.get("custom") or {}
-                chat_text = custom.get("chat_text", "")
-                chat_dir = custom.get("chat_direction", "")
-                if chat_dir == "out" and chat_text and _speech_queue is not None:
-                    try:
-                        _speech_queue.put_nowait(chat_text)
-                        log.info(f"Extension chat-out queued for speech: '{chat_text[:80]}'")
-                    except asyncio.QueueFull:
-                        log.warning("Speech queue full (from extension)")
-                        try:
-                            _speech_queue.get_nowait()
-                            _speech_queue.put_nowait(chat_text)
-                        except asyncio.QueueEmpty:
-                            pass
-                elif chat_dir == "in" and chat_text:
-                    log.info(f"Extension chat-in: '{chat_text[:80]}'")
-
-            except Exception as e:
-                log.error(f"Bad telemetry payload: {e}")
-                await ws.send_json({"error": str(e)})
-    except WebSocketDisconnect:
-        connected_robots.discard(ws)
-        log.info(f"Robot disconnected ({len(connected_robots)} remaining)")
 
 
 # ---------------------------------------------------------------------------
@@ -2486,8 +1854,7 @@ async def ws_telemetry(ws: WebSocket, token: Optional[str] = Query(None)):
 @app.websocket("/ws/dashboard")
 async def ws_dashboard(ws: WebSocket, token: Optional[str] = Query(None)):
     """
-    Connect a monitoring dashboard to get a live stream of
-    telemetry + avatar commands at the broadcast rate.
+    Connect a monitoring dashboard to get a live stream of gateway status.
     """
     if not _check_ws_token(token):
         log.warning(f"Rejected dashboard connection: invalid token from {ws.client}")
@@ -2495,15 +1862,11 @@ async def ws_dashboard(ws: WebSocket, token: Optional[str] = Query(None)):
         return
 
     await ws.accept()
-    interval = 1.0 / EXPRESSION_UPDATE_HZ
     try:
         while True:
-            await asyncio.sleep(interval)
+            await asyncio.sleep(1.0)
             payload = {
-                "telemetry": latest_telemetry.model_dump() if latest_telemetry else None,
-                "avatar": latest_avatar_cmd.to_dict() if latest_avatar_cmd else None,
                 "gateway_connected": gateway_connected,
-                "vtuber_connected": vtuber_ws is not None,
                 "robots_connected": len(connected_robots),
             }
             await ws.send_json(payload, mode="text")
@@ -2722,7 +2085,7 @@ async def api_chat(request: Request):
 import sqlite3 as _sqlite3
 import glob as _glob
 
-_CONFIG_DIR = os.path.join(_BRIDGE_DIR, "..", "..", "config")
+_CONFIG_DIR = os.path.join(_BRIDGE_DIR, "..", "config")
 _MC_DB_PATH = os.path.join(_CONFIG_DIR, "canvas", "mission-control.db")
 
 
@@ -4083,8 +3446,6 @@ async def ws_mission_control(ws: WebSocket, token: Optional[str] = Query(None)):
         snapshot = {
             "type": "snapshot",
             "gateway_connected": gateway_connected,
-            "vtuber_connected": vtuber_ws is not None,
-            "latest_telemetry": latest_telemetry.model_dump(mode="json") if latest_telemetry else None,
             "buffered_events": len(_gateway_event_buffer),
         }
         await ws.send_json(snapshot)

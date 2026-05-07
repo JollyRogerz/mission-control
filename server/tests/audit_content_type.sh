@@ -4,7 +4,7 @@
 # Exits 1 listing offenders if any are missing it.
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CANVAS="$ROOT/config/canvas"
 
 echo "== ADAPT-09 audit at $(date -u +%FT%TZ) =="

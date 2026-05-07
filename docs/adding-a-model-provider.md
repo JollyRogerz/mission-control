@@ -4,7 +4,7 @@ A model provider is any backend that turns a prompt into a completion: Anthropic
 
 ## The Protocol
 
-Source: `openclaw-vtuber/server/adapters/model_provider.py`
+Source: `server/adapters/model_provider.py`
 
 ```python
 from typing import Protocol, runtime_checkable
@@ -27,8 +27,8 @@ Three requirements:
 
 ## Where it lives
 
-- Source path: `openclaw-vtuber/server/providers/<name>.py`
-- The directory-scan loader (`openclaw-vtuber/server/adapters/loader.py`) imports each submodule and verifies its module-level `PROVIDER` singleton via `isinstance(PROVIDER, ModelProvider)` — modules that fail the check are logged and skipped (one broken adapter never blocks boot)
+- Source path: `server/providers/<name>.py`
+- The directory-scan loader (`server/adapters/loader.py`) imports each submodule and verifies its module-level `PROVIDER` singleton via `isinstance(PROVIDER, ModelProvider)` — modules that fail the check are logged and skipped (one broken adapter never blocks boot)
 - The registered provider name comes from the `name` attribute on the singleton (falls back to the file basename if missing)
 - No manual registration step: drop the file, restart, done
 
@@ -36,7 +36,7 @@ Three requirements:
 
 ### 1. Create the module
 
-`openclaw-vtuber/server/providers/myllm.py`:
+`server/providers/myllm.py`:
 
 ```python
 """My LLM provider — example template."""
@@ -93,7 +93,7 @@ MYLLM_MODEL=myllm-medium
 
 ### 3. Test it
 
-The test pattern below mirrors `openclaw-vtuber/server/tests/test_provider_anthropic.py` and uses the `http_mock` (respx) and `monkeypatch` fixtures defined in `openclaw-vtuber/server/tests/conftest.py`.
+The test pattern below mirrors `server/tests/test_provider_anthropic.py` and uses the `http_mock` (respx) and `monkeypatch` fixtures defined in `server/tests/conftest.py`.
 
 ```python
 import pytest

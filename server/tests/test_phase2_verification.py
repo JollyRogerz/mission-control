@@ -8,8 +8,6 @@ Mapping:
     test_sc1_agents_endpoint              -> SC-1 (Waves 2 + 5)
     test_sc2_providers_and_integrations   -> SC-2 (Waves 2 + 5)
     test_sc3_docker_env_vars              -> SC-3 (Wave 3)
-    test_sc4_vtuber_default_off           -> SC-4 (Wave 4, part A: default value)
-    test_sc4_vtuber_gate_blocks_socket    -> SC-4 (Wave 4, part B: lifespan sentinel)
     test_sc5_canvas_hygiene               -> SC-5 (Wave 6, plus Wave 0 guards)
     test_d7_d12_legacy_routes_still_registered -> D7/D12 regression guard
 """
@@ -24,8 +22,8 @@ from httpx import AsyncClient, ASGITransport
 
 # Resolve project paths once
 SERVER_DIR = Path(__file__).resolve().parent.parent
-# REPO_ROOT = openclaw-vtuber/  (parent of server/)
-REPO_ROOT = SERVER_DIR.parent.parent
+# REPO_ROOT = parent of server/
+REPO_ROOT = SERVER_DIR.parent
 BRIDGE_PY = SERVER_DIR / "bridge_server.py"
 GUARD_CONTENT_TYPE = SERVER_DIR / "tests" / "guard_content_type.sh"
 GUARD_NO_SYNC_XHR = SERVER_DIR / "tests" / "guard_no_sync_xhr.sh"
@@ -35,7 +33,6 @@ GUARD_NO_SYNC_XHR = SERVER_DIR / "tests" / "guard_no_sync_xhr.sh"
 def fresh_bridge(tmp_path, monkeypatch):
     """Reload bridge_server with isolated env so tests are deterministic."""
     monkeypatch.setenv("MC_AGENTS_DIR", str(tmp_path))
-    monkeypatch.setenv("VTUBER_ENABLED", "false")
     monkeypatch.delenv("DOCKER_BIN", raising=False)
     monkeypatch.delenv("DOCKER_CONTAINER", raising=False)
     monkeypatch.delenv("SESSIONS_DIR", raising=False)
@@ -54,7 +51,6 @@ async def test_sc1_agents_endpoint(tmp_path, monkeypatch):
         'id: smoke\ndisplay_name: Smoke Test Agent\n', encoding="utf-8"
     )
     monkeypatch.setenv("MC_AGENTS_DIR", str(tmp_path))
-    monkeypatch.setenv("VTUBER_ENABLED", "false")
     sys.modules.pop("bridge_server", None)
     import bridge_server
 
@@ -127,36 +123,6 @@ def test_sc3_docker_env_vars(fresh_bridge):
     assert not forbidden_env.search(src), \
         "SC-3 failed: os.environ.get('DOCKER_CONTAINER', 'openclaw-horizon') default not " \
         "updated to 'openclaw-gateway' (D8)"
-
-
-# ---------- SC-4 ---------------------------------------------------------------
-
-def test_sc4_vtuber_default_off(monkeypatch):
-    """SC-4: VTUBER_ENABLED defaults False; bridge module reflects that with no env."""
-    monkeypatch.delenv("VTUBER_ENABLED", raising=False)
-    sys.modules.pop("bridge_server", None)
-    import bridge_server
-    assert bridge_server.VTUBER_ENABLED is False, \
-        f"SC-4 failed: VTUBER_ENABLED default is {bridge_server.VTUBER_ENABLED}, expected False"
-    sys.modules.pop("bridge_server", None)
-
-
-@pytest.mark.asyncio
-async def test_sc4_vtuber_gate_blocks_socket(monkeypatch):
-    """SC-4: with VTUBER_ENABLED unset, lifespan must NOT call websockets.connect."""
-    monkeypatch.delenv("VTUBER_ENABLED", raising=False)
-    sys.modules.pop("bridge_server", None)
-    import websockets
-
-    def _fail(*args, **kwargs):
-        raise AssertionError(
-            f"SC-4 failed: websockets.connect called during disabled lifespan: {args}"
-        )
-    monkeypatch.setattr(websockets, "connect", _fail)
-    import bridge_server
-    async with bridge_server.app.router.lifespan_context(bridge_server.app):
-        pass  # if gate is missing, _fail above will raise
-    sys.modules.pop("bridge_server", None)
 
 
 # ---------- SC-5 ---------------------------------------------------------------
