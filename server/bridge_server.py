@@ -120,8 +120,12 @@ RECONNECT_DELAY_SEC = 3.0
 
 # Mission Control: Telegram chat relay
 # Priority: env var > sandbox .env file
+# Both TELEGRAM_BOT_TOKEN and TELEGRAM_DEFAULT_CHAT_ID are needed for the
+# dashboard ↔ Telegram message mirror to work. If either is missing, the
+# /api/chat handler silently skips the Telegram relay (gateway-only mode).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-if not TELEGRAM_BOT_TOKEN:
+TELEGRAM_DEFAULT_CHAT_ID = os.environ.get("TELEGRAM_DEFAULT_CHAT_ID", "")
+if not TELEGRAM_BOT_TOKEN or not TELEGRAM_DEFAULT_CHAT_ID:
     _sandbox_env = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "..", ".env",
@@ -130,12 +134,14 @@ if not TELEGRAM_BOT_TOKEN:
         with open(_sandbox_env, "r") as _f:
             for _line in _f:
                 _line = _line.strip()
-                if _line.startswith("TELEGRAM_BOT_TOKEN="):
+                if not TELEGRAM_BOT_TOKEN and _line.startswith("TELEGRAM_BOT_TOKEN="):
                     TELEGRAM_BOT_TOKEN = _line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+                elif not TELEGRAM_DEFAULT_CHAT_ID and _line.startswith("TELEGRAM_DEFAULT_CHAT_ID="):
+                    TELEGRAM_DEFAULT_CHAT_ID = _line.split("=", 1)[1].strip().strip('"').strip("'")
     except (FileNotFoundError, PermissionError):
         pass
-TELEGRAM_DEFAULT_CHAT_ID = os.environ.get("TELEGRAM_DEFAULT_CHAT_ID")  # no default — must be set in env
+if not TELEGRAM_DEFAULT_CHAT_ID:
+    TELEGRAM_DEFAULT_CHAT_ID = None  # signal "unset" for downstream `if` checks
 
 # Mission Control: Dashboard static files (canvas directory)
 _BRIDGE_DIR = os.path.dirname(os.path.abspath(__file__))
