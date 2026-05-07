@@ -19,43 +19,64 @@
   document.head.appendChild(style);
 })();
 
-// Theme-aware color palettes — each agent gets a distinct color PER theme
+// Theme-aware color palettes — each agent gets a distinct color PER theme.
+// Keys must cover every agent.id returned from /api/agents (post _getAgentShort
+// stripping). Currently: orchestrator, builder, architect, social, discord,
+// assistant, researcher.
 var ORB_PALETTES = {
   bebop: {
     orchestrator: { r: 217, g: 160, b: 60 },   // warm gold
     builder:      { r: 200, g: 100, b: 50 },   // copper
     architect:    { r: 180, g: 140, b: 90 },   // brass
     social:       { r: 230, g: 180, b: 80 },   // bright amber
+    discord:      { r: 220, g: 80,  b: 50 },   // rust orange
+    assistant:    { r: 244, g: 211, b: 94 },   // mustard
+    researcher:   { r: 168, g: 50,  b: 50 },   // maroon
   },
   matrix: {
     orchestrator: { r: 0,   g: 255, b: 65 },   // bright matrix green
     builder:      { r: 0,   g: 200, b: 50 },   // darker green
     architect:    { r: 100, g: 255, b: 140 },  // mint green
     social:       { r: 0,   g: 180, b: 80 },   // forest green
+    discord:      { r: 50,  g: 220, b: 100 },  // lime
+    assistant:    { r: 200, g: 255, b: 200 },  // pale phosphor
+    researcher:   { r: 60,  g: 160, b: 60 },   // deep green
   },
   eva: {
     orchestrator: { r: 168, g: 85,  b: 247 },  // EVA-01 purple
     builder:      { r: 74,  g: 222, b: 128 },  // EVA-01 green
     architect:    { r: 124, g: 58,  b: 237 },  // deep purple
     social:       { r: 110, g: 231, b: 160 },  // neon green
+    discord:      { r: 88,  g: 101, b: 242 },  // discord blue
+    assistant:    { r: 250, g: 204, b: 21 },   // hazard yellow
+    researcher:   { r: 236, g: 72,  b: 153 },  // pink
   },
   gits: {
     orchestrator: { r: 6,   g: 182, b: 212 },  // cyan
     builder:      { r: 103, g: 232, b: 249 },  // light cyan
     architect:    { r: 20,  g: 140, b: 180 },  // deep teal
     social:       { r: 80,  g: 200, b: 220 },  // aqua
+    discord:      { r: 56,  g: 189, b: 248 },  // sky blue
+    assistant:    { r: 165, g: 243, b: 252 },  // ice
+    researcher:   { r: 14,  g: 116, b: 144 },  // dark cyan
   },
   alien: {
     orchestrator: { r: 74,  g: 222, b: 128 },  // phosphor green
     builder:      { r: 60,  g: 180, b: 100 },  // dark green
     architect:    { r: 100, g: 240, b: 150 },  // bright green
     social:       { r: 50,  g: 160, b: 90 },   // deep green
+    discord:      { r: 132, g: 204, b: 22 },   // olive green
+    assistant:    { r: 190, g: 242, b: 100 },  // yellow-green
+    researcher:   { r: 22,  g: 163, b: 74 },   // forest
   },
   predator: {
     orchestrator: { r: 239, g: 68,  b: 68 },   // thermal red
     builder:      { r: 250, g: 180, b: 50 },   // thermal yellow
     architect:    { r: 200, g: 50,  b: 50 },   // deep red
     social:       { r: 255, g: 140, b: 60 },   // thermal orange
+    discord:      { r: 248, g: 113, b: 113 },  // pink-red
+    assistant:    { r: 254, g: 240, b: 138 },  // hot yellow
+    researcher:   { r: 153, g: 27,  b: 27 },   // dark red
   },
 };
 
