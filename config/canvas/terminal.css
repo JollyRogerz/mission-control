@@ -421,12 +421,51 @@ body::after {
   overflow: visible;
 }
 
+/* Grid that hosts dynamically cloned .agent-card elements (initAgents).
+   Without this, cards collapse to zero size and the AGENTS panel looks empty. */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  align-content: start;
+}
+
 .agent-card {
   padding: 8px 12px;
   height: 100%;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
   overflow: visible;
+}
+
+/* Header above each agent's sprite/orb showing emoji + display name.
+   Populated by AgentPanel.initAgents() into .panel-title.agent-card-title. */
+.agent-card-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.agent-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
 }
 
 .agent-sprite-area {
