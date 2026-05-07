@@ -52,7 +52,10 @@ BRIDGE_PORT   = int(os.environ.get("BRIDGE_PORT", "8100"))
 # --- ADAPT-06: adapter discovery singletons (Wave 5) -----------------------------
 from adapters import AgentDefinition, ModelProvider, Integration, RuntimeAdapter, _scan  # noqa: E402
 
-MC_AGENTS_DIR = Path(os.environ.get("MC_AGENTS_DIR", "config/agents"))
+# Anchor MC_AGENTS_DIR to the repo root regardless of CWD:
+# bridge_server.py → server/ → <repo-root>/
+_DEFAULT_AGENTS_DIR = Path(__file__).parent.parent / "config" / "agents"
+MC_AGENTS_DIR = Path(os.environ.get("MC_AGENTS_DIR", str(_DEFAULT_AGENTS_DIR)))
 try:
     AGENTS: list[AgentDefinition] = AgentDefinition.load_all(MC_AGENTS_DIR)
 except Exception as _e:  # noqa: BLE001
