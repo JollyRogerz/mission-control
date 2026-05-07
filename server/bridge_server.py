@@ -1780,6 +1780,154 @@ async def _discover_telegram_session_file() -> Optional[str]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _tg_log_seen_update_ids: set = set()
+_tg_log_seen_msg_done_ids: set = set()  # dedup by Telegram inbound messageId for agent-reply mirroring
+
+
+async def _read_latest_assistant_reply(session_key: str) -> Optional[str]:
+    """
+    Read the agent's session JSONL inside Docker and return the most recent
+    assistant text. Used to surface a Telegram-handled agent reply on the
+    dashboard since those runs do not emit chat events over the WS.
+    """
+    try:
+        parts = session_key.split(":")
+        agent_dir = parts[1] if len(parts) > 1 else "orchestrator"
+        sessions_dir = f"/home/node/.openclaw/agents/{agent_dir}/sessions"
+
+        # Resolve the sessionId for this sessionKey via sessions.json
+        proc = await asyncio.create_subprocess_exec(
+            DOCKER_BIN, "exec", DOCKER_CONTAINER,
+            "cat", f"{sessions_dir}/sessions.json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+        if proc.returncode != 0:
+            return None
+        sessions = json.loads(stdout.decode())
+
+        session_id = None
+        for key, info in sessions.items():
+            if (key == session_key or key == "session:" + session_key) and info.get("sessionId"):
+                session_id = info["sessionId"]
+                break
+        if not session_id:
+            # Fallback: any session matching the chat-id portion
+            chat_part = parts[-1] if parts else ""
+            for key, info in sessions.items():
+                if "telegram" in key and chat_part and chat_part in key and info.get("sessionId"):
+                    session_id = info["sessionId"]
+                    break
+        if not session_id:
+            return None
+
+        # Read the JSONL and find the LAST line with role=assistant
+        proc2 = await asyncio.create_subprocess_exec(
+            DOCKER_BIN, "exec", DOCKER_CONTAINER,
+            "tail", "-n", "200", f"{sessions_dir}/{session_id}.jsonl",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout2, _ = await asyncio.wait_for(proc2.communicate(), timeout=10)
+        if proc2.returncode != 0:
+            return None
+
+        # Parse the session JSONL. Each line has the shape
+        #   {"type":"message", "message": {"role":"assistant"|"user"|"toolResult",
+        #     "content": [{"type":"text","text":"..."}, {"type":"thinking",...},
+        #                 {"type":"toolCall",...}], ...}}
+        # We want the LAST assistant turn whose content has at least one
+        # text block (skipping thinking-only and tool-call-only turns).
+        latest_assistant_text = None
+        for line in stdout2.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            # Support both nested ({"type":"message","message":{...}}) and flat
+            # ({"role":"assistant",...}) shapes.
+            inner_msg = row.get("message") if isinstance(row.get("message"), dict) else row
+            role = inner_msg.get("role", "")
+            if role != "assistant":
+                continue
+
+            content = inner_msg.get("content")
+            text = ""
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    btype = block.get("type", "")
+                    if btype == "text":
+                        text += block.get("text", "")
+                    # Skip thinking, toolCall, and other non-text blocks
+            elif isinstance(content, str):
+                text = content
+            elif isinstance(inner_msg.get("text"), str):
+                text = inner_msg["text"]
+
+            text = text.strip()
+            if not text:
+                continue
+
+            # Strip the appended model-report footer that the agent's session
+            # skill emits at the end of every reply (matches the cleanup that
+            # _forward_response_to_telegram does before sending to TG).
+            text = re.sub(r'(?m)^node\s+skills/.*$', '', text)
+            text = re.sub(r'📊\s*Model\s*\(effective\):.*$', '', text, flags=re.MULTILINE)
+            text = text.strip()
+
+            if text:
+                latest_assistant_text = text
+        return latest_assistant_text
+    except Exception as e:
+        log.warning("read latest assistant reply failed: %s", e)
+        return None
+
+
+async def _emit_telegram_agent_reply_to_mc(session_key: str, message_id: int):
+    """
+    Resolve the agent's most recent assistant reply for a Telegram-handled
+    run and broadcast it to MC clients as an assistant chat event so the
+    dashboard mirrors the Telegram conversation in both directions.
+    """
+    if message_id in _tg_log_seen_msg_done_ids:
+        return
+    _tg_log_seen_msg_done_ids.add(message_id)
+    if len(_tg_log_seen_msg_done_ids) > 500:
+        _tg_log_seen_msg_done_ids.clear()
+        _tg_log_seen_msg_done_ids.add(message_id)
+
+    # Small delay so the gateway has time to flush the assistant turn to disk
+    await asyncio.sleep(1.5)
+
+    text = await _read_latest_assistant_reply(session_key)
+    if not text:
+        log.info("📤 TG reply mirror: no assistant text found for sk=%s msgId=%s",
+                 session_key, message_id)
+        return
+
+    agent_id = _resolve_agent_from_session_key(session_key)
+    log.info("📤 TG→MC reply (%d chars, agent=%s, sk=%s)",
+             len(text), agent_id, session_key)
+
+    mc_event = {
+        "type": "event",
+        "event": "chat",
+        "payload": {
+            "role": "assistant",
+            "agentId": agent_id or "orchestrator",
+            "text": text,
+            "sessionKey": session_key,
+            "source": "telegram",
+            "state": "final",
+        },
+    }
+    _broadcast_to_mc(mc_event)
 
 
 async def telegram_log_tail_loop():
@@ -1812,6 +1960,32 @@ async def telegram_log_tail_loop():
                     entry = json.loads(line)
                     subsystem_str = entry.get("0", "")
                     inner = entry.get("1", "")
+
+                    # Branch B: agent finished processing a Telegram message —
+                    # broadcast its reply to MC.  Triggered by diagnostic line:
+                    #   "message processed: channel=telegram chatId=... messageId=N
+                    #    sessionId=... sessionKey=agent:...:telegram:... outcome=completed"
+                    if (
+                        "diagnostic" in subsystem_str
+                        and isinstance(inner, str)
+                        and inner.startswith("message processed:")
+                        and "channel=telegram" in inner
+                        and "outcome=completed" in inner
+                    ):
+                        try:
+                            sk_pos = inner.find("sessionKey=")
+                            mid_pos = inner.find("messageId=")
+                            if sk_pos >= 0 and mid_pos >= 0:
+                                sk_val = inner[sk_pos + len("sessionKey="):].split()[0].strip()
+                                mid_str = inner[mid_pos + len("messageId="):].split()[0].strip()
+                                mid_val = int(mid_str) if mid_str.isdigit() else None
+                                if sk_val and mid_val is not None:
+                                    asyncio.create_task(
+                                        _emit_telegram_agent_reply_to_mc(sk_val, mid_val)
+                                    )
+                        except Exception as parse_err:
+                            log.warning("TG reply-mirror trigger parse failed: %s", parse_err)
+                        continue
 
                     if "telegram/raw-update" not in subsystem_str:
                         continue
