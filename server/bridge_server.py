@@ -1759,6 +1759,134 @@ async def _discover_telegram_session_file() -> Optional[str]:
         return None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Telegram → Mission Control mirror via gateway log tail
+#
+# When the gateway processes Telegram messages internally (channels.telegram
+# enabled in openclaw.json), it does NOT broadcast lifecycle/chat events over
+# the WebSocket protocol. The bridge therefore can't catch user messages on
+# either gateway_ws or chat_ws — confirmed by zero `event/agent` events
+# arriving on either connection during a Telegram-originated run.
+#
+# The gateway DOES write a structured JSON line to /tmp/openclaw/openclaw-*.log
+# whenever Telegram delivers an inbound update, under the
+# `gateway/channels/telegram/raw-update` subsystem. This loop tails that file
+# inside the Docker container, parses each line, filters for raw-updates, and
+# broadcasts a synthetic chat event to MC clients so the operator sees the
+# inbound Telegram message in the dashboard chat panel.
+#
+# Dedup is keyed on Telegram's `update_id` to avoid replaying messages on
+# bridge restart (the tail starts at -n 0 so only NEW lines are read).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_tg_log_seen_update_ids: set = set()
+
+
+async def telegram_log_tail_loop():
+    """
+    Background task: tail the gateway's daily log file inside Docker for
+    Telegram raw-update events and broadcast each as a chat event to MC.
+    Restarts on subprocess death with backoff.
+    """
+    while True:
+        proc = None
+        try:
+            # Tail the most-recent log file (filename includes today's date).
+            # `tail -F` follows file rotation. `-n 0` skips backlog so only
+            # NEW updates after the bridge starts are mirrored.
+            proc = await asyncio.create_subprocess_exec(
+                DOCKER_BIN, "exec", DOCKER_CONTAINER,
+                "sh", "-c",
+                'tail -F -n 0 "$(ls -t /tmp/openclaw/openclaw-*.log 2>/dev/null | head -1)"',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            log.info("📡 Telegram log tail started (container=%s)", DOCKER_CONTAINER)
+
+            async for raw_line in proc.stdout:
+                try:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line or not line.startswith("{"):
+                        continue
+
+                    entry = json.loads(line)
+                    subsystem_str = entry.get("0", "")
+                    inner = entry.get("1", "")
+
+                    if "telegram/raw-update" not in subsystem_str:
+                        continue
+
+                    if not isinstance(inner, str):
+                        continue
+
+                    json_start = inner.find("{")
+                    if json_start < 0:
+                        continue
+
+                    update = json.loads(inner[json_start:])
+                    update_id = update.get("update_id")
+                    msg = update.get("message") or update.get("edited_message") or {}
+                    text = msg.get("text", "") or msg.get("caption", "")
+                    msg_id = msg.get("message_id")
+                    chat = msg.get("chat", {}) or {}
+                    chat_id = chat.get("id")
+                    from_user = msg.get("from", {}) or {}
+                    user_name = (
+                        " ".join(filter(None, [from_user.get("first_name", ""), from_user.get("last_name", "")])).strip()
+                        or from_user.get("username", "")
+                        or "Telegram User"
+                    )
+
+                    if update_id is None or update_id in _tg_log_seen_update_ids:
+                        continue
+                    _tg_log_seen_update_ids.add(update_id)
+                    if len(_tg_log_seen_update_ids) > 500:
+                        # Bound the dedup set
+                        _tg_log_seen_update_ids.clear()
+                        _tg_log_seen_update_ids.add(update_id)
+
+                    if not text:
+                        continue
+
+                    log.info("📩 TG→MC tail: %s (chat=%s, update=%s) %r",
+                             user_name, chat_id, update_id, text[:80])
+
+                    mc_event = {
+                        "type": "event",
+                        "event": "chat",
+                        "payload": {
+                            "role": "user",
+                            "source": "telegram",
+                            "text": text,
+                            "chatId": str(chat_id) if chat_id is not None else "",
+                            "userName": user_name,
+                            "messageId": msg_id,
+                            "updateId": update_id,
+                            "state": "final",
+                        },
+                    }
+                    _broadcast_to_mc(mc_event)
+
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    pass  # malformed lines — skip silently
+                except Exception as parse_err:
+                    log.warning("TG log tail parse error: %s", parse_err)
+
+            log.warning("TG log tail subprocess ended; restarting in 5s")
+        except asyncio.CancelledError:
+            if proc:
+                try: proc.terminate()
+                except Exception: pass
+            raise
+        except Exception as e:
+            log.warning("TG log tail error: %s; retrying in 5s", e)
+        finally:
+            if proc:
+                try: proc.terminate()
+                except Exception: pass
+        await asyncio.sleep(5)
+
+
 async def telegram_polling_loop():
     """
     Poll Telegram Bot API for new messages via getUpdates long-polling.
@@ -1930,6 +2058,11 @@ async def lifespan(app: FastAPI):
     tasks = [
         asyncio.create_task(gateway_event_loop()),       # Listen to Gateway events
         asyncio.create_task(chat_ws_listener()),          # Chat WebSocket (webchat mode)
+        # Mirror Telegram-inbound messages to MC dashboard. The gateway
+        # processes Telegram internally and does not broadcast WS events for
+        # those runs, so we tail the gateway log file inside Docker as the
+        # signal source.
+        asyncio.create_task(telegram_log_tail_loop()),
         # NOTE: Telegram polling DISABLED here — gateway telegram is enabled in
         # openclaw.json and handles getUpdates natively.  Bridge only relays
         # outbound messages (user chat → TG sendMessage / sendPhoto).
