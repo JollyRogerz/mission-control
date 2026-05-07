@@ -597,11 +597,121 @@ async def connect_chat_ws() -> bool:
         return False
 
 
+async def _mirror_chat_event_to_mc(data: dict) -> None:
+    """
+    Process a gateway broadcast event arriving on the chat WS connection.
+
+    Why this exists: gateway_ws and chat_ws both connect with client.id
+    "gateway-client" (an allowlisted value the gateway validates). The
+    gateway then routes broadcast events to whichever backend connection
+    it picks — in practice that's chat_ws. Without this mirror, the
+    dashboard never sees agent replies or routing events.
+
+    Handles only what the dashboard chat panel needs:
+      - stream='assistant' chunks → accumulate text per runId
+      - stream='lifecycle' phase='end' → broadcast final reply to MC
+      - stream='lifecycle' phase='start' on tracked runs → mark for TG forward
+    """
+    event_type = data.get("event", "")
+    if event_type != "agent":
+        return
+
+    payload = data.get("payload", {})
+    run_id = payload.get("runId", "")
+    stream_type = payload.get("stream", "")
+    if not run_id:
+        return
+
+    # Accumulate streaming assistant text for this run
+    if stream_type == "assistant":
+        resp_data = payload.get("data", {})
+        full_text = resp_data.get("text", "") if isinstance(resp_data, dict) else ""
+        if full_text:
+            _assistant_stream_text[run_id] = full_text
+        return
+
+    if stream_type != "lifecycle":
+        return
+
+    phase = (payload.get("data", {}) or {}).get("phase", "")
+    session_key = payload.get("sessionKey", "")
+
+    # On lifecycle start, register tracked runs for Telegram forwarding so a
+    # later "end" knows whether to forward the reply back to TG. Also mirror
+    # Telegram-originated user messages to the dashboard chat panel so the
+    # operator sees the inbound message that the agent is responding to.
+    if phase == "start":
+        if session_key in _pending_forward_sessions:
+            _pending_forward_sessions.discard(session_key)
+            _forward_run_ids.add(run_id)
+            global _draft_counter
+            _draft_counter += 1
+            _active_drafts[run_id] = _draft_counter
+            log.info(
+                f"Run tracked for TG forwarding (chat_ws mirror): {run_id[:12]} "
+                f"session={session_key} (draft_id={_draft_counter})"
+            )
+        # Telegram → dashboard mirror: when a Telegram-originated agent run
+        # starts, fetch the user's incoming message from the agent session
+        # file (Docker exec) and broadcast it to MC clients as a chat event.
+        if "telegram" in session_key:
+            asyncio.create_task(
+                _emit_telegram_user_message_to_mc(session_key, run_id)
+            )
+        return
+
+    if phase != "end":
+        return
+
+    final_text = _assistant_stream_text.pop(run_id, "")
+    if not final_text:
+        return
+
+    resp_agent_id = _resolve_agent_from_session_key(session_key)
+
+    # Forward to Telegram if tracked
+    if run_id in _forward_run_ids:
+        _forward_run_ids.discard(run_id)
+        _active_drafts.pop(run_id, None)
+        _draft_last_sent.pop(run_id, None)
+        log.info(
+            f"Forwarding response to Telegram (chat_ws mirror): "
+            f"{len(final_text)} chars, agent={resp_agent_id}"
+        )
+        asyncio.create_task(
+            _forward_response_to_telegram(final_text, resp_agent_id)
+        )
+        if resp_agent_id:
+            _tg_conversation["agent_id"] = resp_agent_id
+            _tg_conversation["session_key"] = session_key
+            _tg_conversation["updated_at"] = time.monotonic()
+
+    # Always broadcast the agent reply to MC dashboard
+    _mc_chat_event = {
+        "type": "event",
+        "event": "chat",
+        "payload": {
+            "role": "assistant",
+            "agentId": resp_agent_id or "unknown",
+            "text": final_text,
+            "runId": run_id,
+            "sessionKey": session_key,
+            "state": "final",
+            "source": "bridge",
+        },
+    }
+    _broadcast_to_mc(_mc_chat_event)
+    log.info(
+        f"Agent response broadcast to MC chat (chat_ws mirror) "
+        f"({len(final_text)} chars, agent={resp_agent_id})"
+    )
+
+
 async def chat_ws_listener():
     """
     Listen for RPC responses on the chat WebSocket.
     Resolves pending futures in _chat_ws_pending.
-    Also silently consumes broadcast events (we don't need them here).
+    Also mirrors broadcast events to MC via _mirror_chat_event_to_mc.
     """
     global chat_ws, chat_ws_connected
 
@@ -626,7 +736,20 @@ async def chat_ws_listener():
                         future = _chat_ws_pending.pop(req_id)
                         if not future.done():
                             future.set_result(data)
-                # Silently consume broadcast events on this connection
+                # ────────────────────────────────────────────────────────────
+                # Mirror broadcast events to MC dashboard.
+                # The gateway routes agent-reply events to whichever backend
+                # connection it picks; in practice events arrive on chat_ws
+                # while gateway_ws only sees health pings. So we need to
+                # process the agent-reply lifecycle here to keep the MC chat
+                # panel in sync. Processes only the minimum needed: stream
+                # text accumulation + final broadcast on lifecycle end.
+                # ────────────────────────────────────────────────────────────
+                elif data.get("type") == "event":
+                    try:
+                        await _mirror_chat_event_to_mc(data)
+                    except Exception as e:
+                        log.warning(f"Chat WS: mirror error: {e}")
         except websockets.exceptions.ConnectionClosed as e:
             log.warning(f"Chat WS: disconnected ({e})")
         except Exception as e:
