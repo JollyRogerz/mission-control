@@ -107,6 +107,9 @@
           <!-- AGENT_ID is a literal placeholder; AgentPanel.js replaces it at clone time -->
           <template id="agent-card-template">
             <div class="agent-card" id="card-AGENT_ID">
+              <div class="agent-card-header">
+                <span class="panel-title agent-card-title" id="title-AGENT_ID">&mdash;</span>
+              </div>
               <div class="agent-sprite-area">
                 <div class="agent-sprite-container state-idle" id="sprite-AGENT_ID">
                   <div class="monitor-screen"></div>
@@ -128,6 +131,17 @@
               </div>
             </div>
           </template>
+
+          <!-- ─── AGENTS PANEL — host for cloned agent cards ─── -->
+          <div class="panel" id="panel-agents">
+            <div class="panel-header">
+              <span class="panel-title">&#129302; AGENTS</span>
+            </div>
+            <div class="panel-content panel-content-flex">
+              <div class="agent-grid"></div>
+            </div>
+            <div class="panel-resize"></div>
+          </div>
 
           <!-- ─── ACTIVITY FEED PANEL ─── -->
           <div class="panel" id="panel-feed">
