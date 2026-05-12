@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Phase 05 BOOT-02: mission-control.sh — start FastAPI bridge & open dashboard.
-# Requires bootstrap.sh has been run (.venv + .env present).
+# Requires setup.sh has been run (.venv + .env present).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 VENV="$ROOT/.venv"
 
 if [ ! -d "$VENV" ]; then
-  echo "[mc] venv missing — run ./bootstrap.sh first" >&2
+  echo "[mc] venv missing — run ./setup.sh first" >&2
   exit 1
 fi
 if [ ! -f "$ROOT/.env" ]; then
-  echo "[mc] .env missing — run ./bootstrap.sh first" >&2
+  echo "[mc] .env missing — run ./setup.sh first" >&2
   exit 1
 fi
 

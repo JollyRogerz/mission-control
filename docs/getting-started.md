@@ -10,15 +10,15 @@ Mission Control gets you to a working agent dashboard in under 10 minutes.
 - `curl` and `tar` (preinstalled on macOS/Linux)
 - At least one model-provider API key (Anthropic, OpenAI, Gemini, or OpenRouter) **OR** a local Ollama install
 
-## 2. Clone & bootstrap
+## 2. Clone & set up
 
 ```bash
 git clone <repo-url> mission-control
 cd mission-control
-./bootstrap.sh
+./setup.sh
 ```
 
-`bootstrap.sh` will:
+`setup.sh` will:
 
 1. Install `gitleaks v8.30.1` to `~/.local/bin` (skipped if already present at the pinned version)
 2. Create a Python venv at `.venv/`
@@ -26,31 +26,39 @@ cd mission-control
 4. Initialize the SQLite database at `config/canvas/mission-control.db`
 5. Copy `.env.example` → `.env` (mode `600`)
 6. Copy `config/mission-control.json.example` → `config/mission-control.json`
-7. Install the gitleaks pre-commit hook
+7. Generate a per-install `BRIDGE_AUTH_TOKEN` and scaffold the canvas config
+8. Install the gitleaks pre-commit hook
+9. Launch the **interactive credentials wizard** (next section)
 
-Add `~/.local/bin` to your `PATH` if `bootstrap.sh` prints a warning:
+Add `~/.local/bin` to your `PATH` if `setup.sh` prints a warning:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 ```
 
-## 3. Configure
+## 3. Configure (wizard)
 
-Edit `.env` and fill in **at minimum**:
+At the end of `setup.sh`, the wizard walks you through credentials. It hard-fails on validation — bad keys are never written to `.env`.
 
-- `BRIDGE_AUTH_TOKEN` — generate with `openssl rand -hex 32`
-- One of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `OPENROUTER_API_KEY`
-  (or set `OLLAMA_BASE_URL` to a reachable Ollama instance)
+**Step 1 — pick a path:**
 
-Optional integrations:
+- **[A] OpenClaw gateway** *(recommended)* — works with Claude Pro / ChatGPT OAuth accounts. The wizard probes the WebSocket port; saves the URL + token only if reachable.
+- **[B] Direct SDK** — paste keys for any of Anthropic, OpenAI, Gemini, OpenRouter, or Ollama. Each key is live-validated against the provider's API. Path B requires ≥ 1 provider.
+- **[M] Mixed** — both, for power users.
 
-- `DISCORD_BOT_TOKEN` — for Discord posting
-- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_DEFAULT_CHAT_ID` — for Telegram posting
+**Step 2 — starter-agent retarget (path B/M only):** if `config/agents/*.yml` points at a provider you didn't configure, the wizard prints a sed-style diff and asks for confirmation before retargeting.
 
-See [adding-an-integration.md](./adding-an-integration.md) for the full list of
-optional integrations and their env vars.
+**Step 3 — optional integrations:** Discord bot token (validated via `users/@me`) and Telegram bot token (validated via `getMe`). Skip with Enter on a blank prompt.
 
-See [adding-an-agent.md](./adding-an-agent.md) to define your first agent.
+**Re-run anytime** to reconfigure without redoing the mechanical bootstrap:
+
+```bash
+./setup.sh --reconfigure
+```
+
+The wizard detects existing values and offers to keep them (Enter) or overwrite (paste a new value). Secrets are masked to last-4 on display. You can also skip the wizard entirely with `./setup.sh --no-wizard` and edit `.env` by hand.
+
+See [adding-an-integration.md](./adding-an-integration.md) for integrations you might add later, and [adding-an-agent.md](./adding-an-agent.md) to define your own agent.
 
 ## 4. Launch
 
@@ -74,8 +82,8 @@ Stop with `Ctrl-C`.
 
 | Symptom | Fix |
 |---|---|
-| `gitleaks: command not found` after bootstrap | Add `~/.local/bin` to `$PATH` (see step 2) |
-| `bootstrap.sh` fails on `pip install` | Ensure Python ≥ 3.11; on Linux you may need `python3-venv` (`sudo apt install python3.12-venv`) |
+| `gitleaks: command not found` after setup | Add `~/.local/bin` to `$PATH` (see step 2) |
+| `setup.sh` fails on `pip install` | Ensure Python ≥ 3.11; on Linux you may need `python3-venv` (`sudo apt install python3.12-venv`) |
 | Dashboard doesn't open | Open `http://127.0.0.1:8100/dashboard/` manually; check `BRIDGE_HOST` / `BRIDGE_PORT` in `.env` |
 | Empty agent panel | Confirm `config/agents/*.yml` exists; see [adding-an-agent.md](./adding-an-agent.md) |
 | `ANTHROPIC_API_KEY not set` (or similar) in logs | Edit `.env`, add the key, restart `./mission-control.sh` |

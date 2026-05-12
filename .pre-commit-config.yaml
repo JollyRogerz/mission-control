@@ -1,6 +1,6 @@
 # Phase 05 HARDEN-02: pre-commit gitleaks hook (pinned to v8.30.1)
 # Install pre-commit framework: `pip install pre-commit && pre-commit install`
-# bootstrap.sh runs both lines automatically.
+# setup.sh runs both lines automatically.
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
