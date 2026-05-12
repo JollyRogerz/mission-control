@@ -133,7 +133,7 @@ Object.assign(MissionControl.prototype, {
       const agentCfg = typeof AGENTS !== 'undefined' ? AGENTS[task.assignee] : null;
       assigneeLabel = agentCfg
         ? agentCfg.emoji + ' ' + agentCfg.name
-        : (task.assignee === 'ruben' ? 'R Ruben' : task.assignee);
+        : task.assignee;
     }
 
     const created = new Date(task.created_at);
@@ -328,7 +328,7 @@ Object.assign(MissionControl.prototype, {
 
     // Build assignee options dynamically from W2 agent cache
     const agentCache = (window._missionControl && window._missionControl._agents) || [];
-    let assigneeOptions = '<option value="">Unassigned</option><option value="ruben">Ruben</option>';
+    let assigneeOptions = '<option value="">Unassigned</option>';
     agentCache.forEach(function(agent) {
       assigneeOptions += '<option value="' + agent.id + '">' + (agent.emoji || '') + ' ' + (agent.display_name || agent.id) + '</option>';
     });

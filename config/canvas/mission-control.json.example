@@ -1,5 +1,5 @@
 {
   "bridge_token": "",
   "bridge_url": "http://127.0.0.1:8100",
-  "notes": "bridge_token must match BRIDGE_AUTH_TOKEN in .env (bootstrap.sh fills both with the same generated value). NEVER commit the runtime mission-control.json — it is gitignored."
+  "notes": "bridge_token must match BRIDGE_AUTH_TOKEN in .env (setup.sh fills both with the same generated value). NEVER commit the runtime mission-control.json — it is gitignored."
 }
