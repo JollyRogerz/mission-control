@@ -2235,16 +2235,20 @@ async def lifespan(app: FastAPI):
     tasks = [
         asyncio.create_task(gateway_event_loop()),       # Listen to Gateway events
         asyncio.create_task(chat_ws_listener()),          # Chat WebSocket (webchat mode)
-        # Mirror Telegram-inbound messages to MC dashboard. The gateway
-        # processes Telegram internally and does not broadcast WS events for
-        # those runs, so we tail the gateway log file inside Docker as the
-        # signal source.
-        asyncio.create_task(telegram_log_tail_loop()),
         # NOTE: Telegram polling DISABLED here — gateway telegram is enabled in
         # openclaw.json and handles getUpdates natively.  Bridge only relays
         # outbound messages (user chat → TG sendMessage / sendPhoto).
         # asyncio.create_task(telegram_polling_loop()),
     ]
+    # Mirror Telegram-inbound messages to MC dashboard by tailing the gateway
+    # log inside Docker. Only useful when (a) the operator actually uses
+    # Telegram and (b) the bridge can `docker exec` into the gateway container.
+    # Gating on TELEGRAM_BOT_TOKEN keeps the warning loop quiet in setups
+    # without Telegram (the common case for first-time users).
+    if os.environ.get("TELEGRAM_BOT_TOKEN"):
+        tasks.append(asyncio.create_task(telegram_log_tail_loop()))
+    else:
+        log.info("Telegram log tail disabled (TELEGRAM_BOT_TOKEN not set)")
     yield
     for t in tasks:
         t.cancel()
@@ -2261,11 +2265,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# SECURITY: Restrict CORS to localhost origins only.
-# allow_origin_regex matches any port on localhost/127.0.0.1 (needed for
-# the Mission Control desktop app which uses a random port asset server).
+# SECURITY: Localhost origins (any port on 127.0.0.1 / localhost, http or
+# https) are always allowed — this is the default single-operator setup.
+# Additional origins can be whitelisted via MC_ALLOWED_ORIGINS in .env as
+# a comma-separated list, e.g.
+#   MC_ALLOWED_ORIGINS=http://192.168.1.50:8100,http://mc.local:8100
+# WARNING: most endpoints have no auth (loopback-only assumption). Adding
+# non-loopback origins lets anyone who can reach the port drive your agents
+# and burn API credits. Put an auth proxy in front before exposing it.
+_extra_origins = [
+    o.strip()
+    for o in os.environ.get("MC_ALLOWED_ORIGINS", "").split(",")
+    if o.strip()
+]
+if _extra_origins:
+    log.warning(
+        "CORS: extra non-loopback origins enabled: %s — bridge has no auth on most endpoints",
+        _extra_origins,
+    )
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=_extra_origins,
     allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
     allow_methods=["GET", "POST"],
     allow_headers=["*", "X-Auth-Token"],
