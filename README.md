@@ -1,12 +1,16 @@
 # Mission Control
 
-> A self-hosted, EVA-themed dashboard for running swarms of LLM agents — with pluggable model providers, pluggable outbound channels, and your keys staying on your machine.
+> A self-hosted, themeable dashboard for running swarms of LLM agents — with pluggable model providers, pluggable outbound channels, and your keys staying on your machine.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![Status](https://img.shields.io/badge/status-alpha-orange.svg)
 
-![EVA-themed dashboard](docs/images/eva-theme.png)
+| EVA | BEBOP | PREDATOR |
+|:---:|:---:|:---:|
+| ![EVA theme](docs/images/eva-theme.png) | ![BEBOP theme](docs/images/bebop-theme.png) | ![PREDATOR theme](docs/images/predator-theme.png) |
+
+Three cinematic themes ship in the box. Switch live from the dashboard's theme switcher.
 
 ## What is this?
 
