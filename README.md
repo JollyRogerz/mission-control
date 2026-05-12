@@ -21,7 +21,7 @@ It's designed for one operator running a handful of agents, not a multi-tenant S
 - **2 outbound integrations** — Discord and Telegram. Agents can post into channels or DMs you wire them to.
 - **2 dispatch runtimes** — connect to a running OpenClaw gateway, or run model SDKs directly. Pick per agent.
 - **EVA-themed UI** — vanilla JS, no framework lock-in, no build step. Open the browser, talk to agents, see streaming output.
-- **Single-script bootstrap** — `./bootstrap.sh` installs Python deps, generates secrets, scaffolds config. `./mission-control.sh` launches it.
+- **Single-script setup** — `./setup.sh` installs Python deps, generates secrets, scaffolds config, then walks you through an interactive credentials wizard (validates every key with a live ping). `./mission-control.sh` launches it.
 
 ### Who this is for
 
@@ -74,20 +74,18 @@ Requires Python 3.11+ on macOS or Linux. Windows users: use WSL2.
 ```bash
 git clone <repo-url> mission-control
 cd mission-control
-./bootstrap.sh
+./setup.sh
 ```
 
-`bootstrap.sh` is idempotent. It creates a virtualenv, installs deps, copies `.env.example` → `.env`, generates a per-install `BRIDGE_AUTH_TOKEN`, scaffolds the canvas config with that token, and installs `gitleaks` for secret scanning.
+`setup.sh` is idempotent. It creates a virtualenv, installs deps, copies `.env.example` → `.env`, generates a per-install `BRIDGE_AUTH_TOKEN`, scaffolds the canvas config, installs `gitleaks` for secret scanning, then walks you through an interactive credentials wizard.
 
-Now edit `.env` and fill in **either** path:
+The wizard makes you pick one of:
 
-**Path A — OpenClaw gateway:**
-```
-OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
-OPENCLAW_GATEWAY_TOKEN=<token-from-your-openclaw-install>
-```
+- **Path A — OpenClaw gateway** *(recommended)* — paste your gateway URL + token. The wizard probes the WebSocket port; bad config is not saved.
+- **Path B — Direct SDK** — paste keys for any of Anthropic, OpenAI, Gemini, OpenRouter, or Ollama. Each key is live-validated against the provider's API before it's written to `.env`.
+- **Path M — Mixed** — both, for power users.
 
-**Path B — direct provider keys:** fill in at least one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, or set `OLLAMA_HOST` if you run a local Ollama daemon.
+You can also configure Discord/Telegram tokens (also live-validated) in the same flow. Re-run anytime with `./setup.sh --reconfigure` to skip the mechanical bootstrap and jump straight to the wizard.
 
 Then launch:
 
@@ -141,7 +139,7 @@ Mission Control is meant to be hacked on. Each adapter type is a single file or 
 
 | Symptom | Likely fix |
 |---|---|
-| `mission-control.sh` exits saying `BRIDGE_AUTH_TOKEN missing` | Re-run `./bootstrap.sh` — it generates one and writes it into `.env`. |
+| `mission-control.sh` exits saying `BRIDGE_AUTH_TOKEN missing` | Re-run `./setup.sh` — it generates one and writes it into `.env`. |
 | Agent replies with a key/auth error | Path A: check `OPENCLAW_GATEWAY_TOKEN` matches your gateway. Path B: confirm the relevant `*_API_KEY` is set. |
 | Browser opens but the dashboard is blank | Hard-refresh (the EVA theme has cached assets); confirm `http://127.0.0.1:8100/dashboard/` returns HTML. |
 | Discord/Telegram bot doesn't post | Confirm the bot is invited to the channel and the channel ID in the agent YAML matches. |
